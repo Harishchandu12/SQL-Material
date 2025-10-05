@@ -1,0 +1,10 @@
+A table is a collection of related data organized in rows (records) and columns (fields).
+•	Think of a table as a spreadsheet.
+•	Each column has a data type (integer, text, date, etc.).
+        Example (creating a table):
+               CREATE TABLE Employees (
+               EmployeeID INT,
+               FirstName VARCHAR(50),
+               LastName VARCHAR(50),
+               HireDate DATE
+         );
