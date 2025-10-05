@@ -1,0 +1,239 @@
+Overview - char Vs varchar Vs nvarchar
+
+These are string data types used in databases (like SQL Server, MySQL, Oracle, etc.) to store textual data — but they differ in:
+
+How they store data,
+
+How much space they use, and
+
+Whether they support Unicode (international characters).
+
+1. CHAR
+➤ Definition:
+
+CHAR(n) is a fixed-length string data type.
+
+It always stores exactly n characters, even if you store fewer.
+
+If the stored value is shorter than n, it pads with spaces to make up the length.
+
+➤ Characteristics:
+Property	Description
+Type	Fixed length
+Storage size	Always n bytes (or 2n if using Unicode)
+Performance	Slightly faster for fixed-size data
+Use when	Data entries are roughly the same size (e.g., country codes, phone area codes)
+➤ Example:
+CREATE TABLE Employees (
+  EmpCode CHAR(5)
+);
+
+INSERT INTO Employees VALUES ('A1');
+
+
+🧾 Stored value: 'A1 ' → padded with 3 spaces
+📦 Storage used: 5 characters
+
+2. VARCHAR
+➤ Definition:
+
+VARCHAR(n) is a variable-length string data type.
+
+It stores only the actual number of characters entered (no padding).
+
+It can store up to n characters.
+
+➤ Characteristics:
+Property	Description
+Type	Variable length
+Storage size	Actual length of data + 1 or 2 bytes (for length info)
+Performance	Slightly slower than CHAR for fixed-length data, but saves space
+Use when	Data entries vary greatly in size (e.g., names, addresses)
+➤ Example:
+CREATE TABLE Employees (
+  EmpName VARCHAR(20)
+);
+
+INSERT INTO Employees VALUES ('John');
+
+
+🧾 Stored value: 'John' (no padding)
+📦 Storage used: 4 bytes + 1 overhead byte = 5 bytes
+
+3. NVARCHAR
+➤ Definition:
+
+NVARCHAR(n) is a variable-length Unicode string data type.
+
+Supports international characters (e.g., Chinese, Arabic, Hindi).
+
+Each character takes 2 bytes of storage (because of Unicode).
+
+➤ Characteristics:
+Property	Description
+Type	Variable length (Unicode)
+Storage size	2 × actual length of data + 2 bytes (for length info)
+Supports Unicode?	✅ Yes
+Use when	You need to store data in multiple languages
+➤ Example:
+CREATE TABLE Customers (
+  CustomerName NVARCHAR(20)
+);
+
+INSERT INTO Customers VALUES (N'李雷');  -- Note the N prefix
+
+
+🧾 Stored value: '李雷'
+📦 Storage used: 2 characters × 2 bytes = 4 bytes
+
+🔤 Always use prefix N before Unicode strings, e.g. N'日本'.
+
+ Practical Example in SQL Server
+CREATE TABLE DemoStrings (
+  Code CHAR(5),
+  Name VARCHAR(10),
+  UnicodeName NVARCHAR(10)
+);
+
+INSERT INTO DemoStrings VALUES ('AB', 'John', N'李雷');
+
+SELECT 
+  Code, 
+  LEN(Code) AS CharLength,
+  Name, 
+  LEN(Name) AS VarCharLength,
+  UnicodeName,
+  LEN(UnicodeName) AS NVarcharLength
+FROM DemoStrings;
+
+
+🧩 Output:
+
+Code	CharLength	Name	VarCharLength	UnicodeName	NVarcharLength
+AB	2	John	4	李雷	2
+
+But in memory:
+
+Code still takes 5 bytes (padded to fixed length).
+
+Name takes 4 bytes (actual characters only).
+
+UnicodeName takes 4 bytes (2 bytes per Unicode char).
+
+🏁 Summary
+Data Type	Key Idea	When to Use
+CHAR(n)	Fixed length	When all values are same size (e.g., PIN, code, ID)
+VARCHAR(n)	Variable length (non-Unicode)	When data length varies (e.g., names, emails)
+NVARCHAR(n)	Variable length (Unicode)	When supporting multiple languages
+
+
+
+What is Unicode vs Non-Unicode?
+Term	Meaning
+Unicode	A universal character encoding standard that supports almost all languages and symbols in the world.
+Non-Unicode	Refers to older, language-specific encodings that support only limited characters, usually from a single language or region (like ASCII or ANSI).
+
+ 1. What is Unicode?
+🔹 Definition:
+
+Unicode is a universal standard for representing text in computers.
+It assigns a unique number (code point) to every character — no matter the language, platform, or program.
+
+🔹 Key Points:
+
+Can represent over 143,000 characters (including emojis, symbols, and scripts).
+
+Each character has a unique code point, e.g.:
+
+'A' → U+0041
+
+'अ' (Hindi) → U+0905
+
+'李' (Chinese) → U+674E
+
+Supported by NVARCHAR, NCHAR, and N'Text' data types in SQL Server.
+
+🔹 Example:
+DECLARE @name NVARCHAR(20)
+SET @name = N'李雷'
+PRINT @name
+
+
+✅ Output: 李雷 (correct display of Chinese text)
+
+🔹 Common Unicode Encoding Forms:
+Encoding	Bytes per Character	Description
+UTF-8	1–4	Variable length (most common, web standard)
+UTF-16	2 or 4	Used in Windows and SQL Server
+UTF-32	4	Fixed length (less common, larger files)
+
+2. What is Non-Unicode?
+🔹 Definition:
+
+Non-Unicode refers to legacy encodings like ASCII or ANSI that only support limited character sets (usually English or regional).
+
+Each character is represented by 1 byte (0–255 values).
+
+Cannot store international or multi-language characters correctly.
+
+🔹 Example:
+DECLARE @name VARCHAR(20)
+SET @name = '李雷'
+PRINT @name
+
+
+❌ Output: ?? or garbled text — because Non-Unicode can’t represent Chinese characters.
+
+🔹 Common Non-Unicode Encodings:
+Encoding	Character Limit	Example
+ASCII	128 (A–Z, a–z, digits, symbols)	English text
+Extended ASCII / ANSI	256	Western European languages
+
+⚖️ Unicode vs Non-Unicode – Comparison Table
+
+Feature	Unicode	Non-Unicode
+Definition	Supports all characters in all languages	                 Supports only limited characters (e.g., English)
+Storage size	Usually 2 bytes per character (UTF-16)	1 byte per character
+Data types (SQL Server)	NCHAR, NVARCHAR, NTEXT	CHAR, VARCHAR, TEXT
+Prefix for string literals	Must use N before string (e.g., N'Hello')	No prefix needed
+Supports multi-language data	✅ Yes	❌ No
+Performance	Slightly slower (more memory)	Slightly faster
+Use case	Global applications (multilingual text)	Local applications (single-language text)
+Example Output	李雷, नमस्ते, مرحبا	?? or corrupted text
+🧮 Practical Example (SQL Server)
+CREATE TABLE TestTable (
+  Name_Unicode NVARCHAR(20),
+  Name_NonUnicode VARCHAR(20)
+);
+
+INSERT INTO TestTable VALUES (N'李雷', '李雷');
+
+SELECT Name_Unicode, Name_NonUnicode FROM TestTable;
+
+Name_Unicode	Name_NonUnicode
+李雷	??
+
+✅ NVARCHAR (Unicode) correctly stores Chinese characters.
+❌ VARCHAR (Non-Unicode) fails because it only supports ASCII/ANSI.
+
+🌍 Why Unicode Matters
+
+Enables internationalization (support for multiple languages in one database/app).
+
+Handles emojis, symbols, and special characters.
+
+Prevents data loss or corruption during migration between systems.
+
+🏁 Summary
+Criteria	Unicode	Non-Unicode
+Character Range	Global (multi-language)	Limited (ASCII/ANSI)
+Example Data Type	NVARCHAR, NCHAR	VARCHAR, CHAR
+Encoding	UTF-8 / UTF-16	ASCII / ANSI
+Bytes per Character	2+	1
+Suitable for	Global apps, multilingual data	English/local data
+
+✅ In short:
+
+Use Unicode (NVARCHAR) when your app or database needs to support multiple languages.
+
+Use Non-Unicode (VARCHAR) if you’re sure all data will stay in English or a single language.
