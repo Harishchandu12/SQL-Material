@@ -1,0 +1,111 @@
+What Are Data Types?
+
+A data type defines the kind of value a variable can hold and the operations that can be performed on that value.
+In programming, data types are essential because they:
+
+Help the compiler or interpreter understand how the programmer intends to use the data.
+
+Prevent type errors (e.g., adding a number to a string).
+
+Make programs more efficient and reliable.
+
+🗂️ Main Categories of Data Types
+
+Data types are usually divided into two broad categories:
+
+Primitive (or Basic) Data Types
+
+Non-Primitive (or Derived/Composite) Data Types
+
+Let’s go through them one by one.
+
+🧩 1. Primitive Data Types
+
+These are the most basic data types that store simple values.
+They are built into the programming language.
+
+Common Primitive Data Types
+Data Type	Description	Example
+Integer (int)	Whole numbers, both positive and negative.	10, -45, 0
+Float / Double	Numbers with decimal points (fractional values).	3.14, -0.99, 2.0
+Character (char)	A single character enclosed in quotes.	'A', '5', '#'
+Boolean (bool)	Represents truth values.	True, False
+String (str)	Sequence of characters.	"Hello", "123", "Python"
+
+💡 Note:
+In some languages like C, strings are arrays of characters, but in Python or Java, String is a separate data type.
+
+🧱 2. Non-Primitive Data Types
+
+These data types are derived from primitive ones.
+They can hold multiple values or complex structures.
+
+Common Non-Primitive Types
+Data Type	Description	Example
+Array / List	Collection of items of the same or mixed data type, stored in a sequence.	[10, 20, 30], ["apple", "banana"]
+Tuple	Ordered and immutable collection of items.	(1, 2, 3)
+Set	Unordered collection of unique elements.	{1, 2, 3}
+Dictionary / Map	Key-value pairs.	{"name": "Alice", "age": 25}
+Object / Class	User-defined data type combining variables and methods.	class Student { ... }
+Pointer / Reference	Stores the address of another variable (C, C++).	int *ptr;
+🧮 Data Types in Different Languages
+Language	Primitive Data Types	Example Non-Primitive Data Types
+C	int, float, char, double	array, struct, pointer
+C++	int, float, char, double, bool	class, object, string
+Java	byte, short, int, long, float, double, char, boolean	String, array, class, interface
+Python	int, float, bool, str, complex	list, tuple, set, dict, object
+⚙️ Type Conversion
+
+Converting one data type to another is called Type Conversion (or Type Casting).
+
+Types:
+
+Implicit Conversion (Type Coercion) – Done automatically by the compiler.
+
+Example:
+
+x = 10       # int
+y = 2.5      # float
+z = x + y    # float (int automatically converted to float)
+
+
+Explicit Conversion (Type Casting) – Done manually by the programmer.
+
+Example:
+
+a = int(3.7)    # Converts float to int (a = 3)
+b = str(25)     # Converts int to string ("25")
+
+🧠 Data Type Properties
+Property	Description
+Size	Amount of memory allocated for storage.
+Range	Minimum and maximum value it can hold.
+Default Value	Value assigned if not initialized.
+Operations	Valid actions allowed on that type (e.g., arithmetic on numbers).
+📊 Example (Python)
+# Primitive Types
+name = "Alice"      # String
+age = 25            # Integer
+height = 5.6        # Float
+is_student = True   # Boolean
+
+# Non-Primitive Types
+fruits = ["apple", "banana", "mango"]  # List
+person = {"name": "Alice", "age": 25}  # Dictionary
+coordinates = (10, 20)                 # Tuple
+unique_nums = {1, 2, 3, 3}             # Set -> {1, 2, 3}
+
+print(type(name))
+print(type(age))
+print(type(person))
+
+🏁 Summary Table
+Category	Type	Mutable	Example
+Primitive	int	❌	10
+Primitive	float	❌	3.14
+Primitive	bool	❌	True
+Primitive	str	❌	"Hi"
+Non-Primitive	list	✅	[1,2,3]
+Non-Primitive	tuple	❌	(1,2,3)
+Non-Primitive	set	✅	{1,2,3}
+Non-Primitive	dict	✅	{"a":1,"b":2}
