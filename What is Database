@@ -1,0 +1,68 @@
+Database
+
+•	Definition: A database is an organized collection of structured data stored electronically in SQL Server. It groups schemas, tables, views, procedures, and other objects.
+•	Purpose: Acts as a container to store and manage related data for an application.
+
+                      Example:  CREATE DATABASE HospitalDB; 
+
+       "In SQL Server, a database is the highest-level container that stores and organizes all the data and objects.
+Inside a database, you can have multiple schemas, which act like logical folders or namespaces.
+Each schema contains database objects such as tables (to store data), views (to represent data in a certain way), and stored procedures (to perform operations or business logic).
+This structure helps in organizing objects, controlling access, and avoiding naming conflicts."
+________________________________________
+ Hierarchy Representation
+Database (HospitalDB)
+│
+├── Schema: Medical
+│   ├── Table: Patient
+│   ├── Table: Appointment
+│   ├── View: ActivePatients
+│   └── Procedure: GetPatientHistory
+│
+├── Schema: Finance
+│   ├── Table: Billing
+│   ├── Table: Payments
+│   ├── View: OutstandingBills
+│   └── Procedure: GenerateInvoice
+│
+└── Schema: HR
+    ├── Table: Employee
+    ├── Table: Payroll
+    ├── View: EmployeeContacts
+    └── Procedure: UpdatePayroll
+________________________________________
+Example in SQL
+-- Create a database
+CREATE DATABASE HospitalDB;
+GO
+
+-- Create schemas
+CREATE SCHEMA Medical;
+CREATE SCHEMA Finance;
+GO
+
+-- Create tables inside schemas
+CREATE TABLE Medical.Patient (
+    PatientID INT PRIMARY KEY,
+    Name NVARCHAR(100),
+    DOB DATE
+);
+
+CREATE TABLE Finance.Billing (
+    BillingID INT PRIMARY KEY,
+    PatientID INT,
+    Amount DECIMAL(10,2)
+);
+
+-- Create a view in Medical schema
+CREATE VIEW Medical.ActivePatients AS
+SELECT PatientID, Name 
+FROM Medical.Patient
+WHERE DOB IS NOT NULL;
+
+-- Create a stored procedure in Finance schema
+CREATE PROCEDURE Finance.GenerateInvoice
+AS
+BEGIN
+    SELECT * FROM Finance.Billing;
+END;
