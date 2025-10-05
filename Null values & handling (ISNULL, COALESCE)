@@ -1,0 +1,159 @@
+What Are NULL Values in SQL?
+
+A NULL represents missing, unknown, or undefined data.
+
+It is not zero, not an empty string, and not false — it means “no value assigned.”
+
+In simple terms:
+
+NULL = absence of value.
+
+Examples of NULL Values:
+CREATE TABLE Employees (
+  EmpID INT,
+  EmpName VARCHAR(50),
+  Salary DECIMAL(10,2),
+  Commission DECIMAL(10,2)
+);
+
+INSERT INTO Employees VALUES
+(1, 'John', 50000, 2000),
+(2, 'Sarah', 60000, NULL),
+(3, 'David', NULL, NULL);
+
+EmpID	 EmpName	Salary	Commission
+1	John	 50000.00	       2000.00
+2	Sarah	 60000.00	       NULL
+3	David	  NULL	         NULL
+
+Important Notes About NULL
+Concept	Description
+NULL ≠ 0	Zero means a real numeric value; NULL means no value.
+NULL ≠ ''	Empty string is a valid value; NULL is absence of any value.
+NULL ≠ NULL	NULL is unknown, so comparing two NULLs returns FALSE.
+IS NULL / IS NOT NULL	Used to check whether a column contains a NULL.
+
+Example:
+SELECT * FROM Employees WHERE Commission IS NULL;
+
+
+✅ Returns rows where commission is missing.
+
+🧮 Problems Caused by NULL
+
+NULL values can cause issues in calculations:
+
+SELECT EmpName, Salary + Commission AS TotalPay
+FROM Employees;
+
+EmpName	Salary	Commission	TotalPay
+John	  50000	    2000	     52000
+Sarah  	60000	    NULL	     NULL ❌
+David	  NULL	    NULL	     NULL ❌
+
+➡️ When you perform arithmetic or concatenation with NULL, the result is NULL.
+
+So, we need a way to replace or handle NULLs safely.
+
+ 1. ISNULL() Function
+🔹 Purpose:
+
+Replaces NULL with a specified replacement value.
+
+🔹 Syntax:
+ISNULL(expression, replacement_value)
+
+🔹 Example 1: Replace NULL with Zero
+SELECT EmpName,
+       Salary,
+       Commission,
+       Salary + ISNULL(Commission, 0) AS TotalPay
+FROM Employees;
+
+EmpName	Salary	Commission	TotalPay
+John	50000	2000	52000
+Sarah	60000	NULL	60000
+David	NULL	NULL	NULL
+
+💡 The ISNULL() only replaced the NULL in Commission (not in Salary).
+
+🔹 Example 2: Replace NULL with Text
+SELECT EmpName,
+       ISNULL(CAST(Salary AS VARCHAR), 'Not Available') AS Salary
+FROM Employees;
+
+EmpName 	Salary
+John	    50000
+Sarah   	60000
+David	   Not Available
+
+
+ 2. COALESCE() Function
+🔹 Purpose:
+
+Returns the first non-NULL value from a list of expressions.
+
+🔹 Syntax:
+COALESCE(expr1, expr2, expr3, ...)
+
+🔹 How It Works:
+
+Checks each argument in order.
+
+Returns the first one that is not NULL.
+
+If all are NULL, returns NULL.
+
+🔹 Example 1:
+SELECT EmpName,
+       COALESCE(Salary, Commission, 0) AS EffectivePay
+FROM Employees;
+
+EmpName	Salary	Commission	EffectivePay
+John	  50000	   2000	       50000
+Sarah  	60000   	NULL       60000
+David	  NULL    	NULL       	0
+
+🧩 COALESCE checks:
+
+Salary → if NULL, check Commission
+
+Commission → if NULL, return 0
+
+🔹 Example 2: Using Multiple Columns
+SELECT EmpName,
+       COALESCE(Salary, Commission, 1000) AS FinalSalary
+FROM Employees;
+
+
+→ Replaces NULL values intelligently with the next available non-NULL.
+
+⚖️ ISNULL() vs COALESCE() — Key Differences
+Feature	ISNULL()	COALESCE()
+Parameters	Takes only 2	Takes multiple
+Return Type	Same type as 1st argument	Returns data type of highest precedence among arguments
+Standard	SQL Server–specific	ANSI SQL standard (portable)
+Example	ISNULL(Commission, 0)	COALESCE(Salary, Commission, 0)
+Usage	Simple replacement	More flexible, checks multiple options
+
+🧮 Example Combining Both
+SELECT EmpName,
+       ISNULL(Salary, 0) AS SalaryFixed,
+       ISNULL(Commission, 0) AS CommFixed,
+       ISNULL(Salary, 0) + ISNULL(Commission, 0) AS Total1,
+       COALESCE(Salary, Commission, 0) AS Total2
+FROM Employees;
+
+EmpName	SalaryFixed	CommFixed	Total1	Total2
+John	   50000	     2000	     52000	50000
+Sarah  	60000	        0	       60000	60000
+David	    0	          0       	0     	0
+
+ Summary:
+Concept	Description	Example
+NULL	Missing / unknown data	Commission = NULL
+IS NULL	Checks for NULL	WHERE Commission IS NULL
+ISNULL()	Replaces a NULL with a given value	ISNULL(Commission, 0)
+COALESCE()	Returns first non-NULL from list	COALESCE(Salary, Commission, 0)
+Use COALESCE()	When you have multiple fallback values	
+Use ISNULL()	When you need a simple default replacement	
