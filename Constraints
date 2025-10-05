@@ -1,0 +1,56 @@
+Constraints are rules applied to table columns to ensure data integrity.
+
+1. Primary Key
+•	Uniquely identifies each row in a table.
+•	Cannot be NULL.
+•	Each table can have only one primary key, but it can be a composite key (multiple columns).
+         Example:
+                  CREATE TABLE Employees (
+                  EmployeeID INT PRIMARY KEY,
+                  FirstName VARCHAR(50),
+                 LastName VARCHAR(50)
+       );
+
+2. Foreign Key
+•	Establishes a relationship between tables.
+•	Ensures that values in one table must exist in another.
+        Example:
+                    CREATE TABLE Departments (
+                          DeptID INT PRIMARY KEY,
+                          DeptName VARCHAR(50)
+               );
+
+                   CREATE TABLE Employees (
+                       EmployeeID INT PRIMARY KEY,
+                       FirstName VARCHAR(50),
+                       DeptID INT,
+                   FOREIGN KEY (DeptID) REFERENCES Departments(DeptID)
+             );
+
+3. Unique
+•	Ensures all values in a column (or combination of columns) are unique.
+•	A table can have multiple UNIQUE constraints.
+          Example:
+               CREATE TABLE Employees (
+                        EmployeeID INT PRIMARY KEY,
+                        Email VARCHAR(100) UNIQUE
+                   );
+
+4. Check
+•	Ensures that column values satisfy a specific condition.
+        Example:
+              CREATE TABLE Employees (
+                        EmployeeID INT PRIMARY KEY,
+                       Age INT,
+                      CHECK (Age >= 18)
+                   );
+
+5. Default
+•	Assigns a default value if no value is provided during insertion.
+              Example:
+                  CREATE TABLE Employees (
+                       EmployeeID INT PRIMARY KEY,
+                       Status VARCHAR(10) DEFAULT 'Active'
+                       );
+
+
