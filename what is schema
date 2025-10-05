@@ -1,0 +1,5 @@
+A schema is a logical container inside a database that groups objects like tables, views, and functions.
+•	Think of a schema as a section in a library, like "Science" or "History," organizing books (tables).
+•	Many databases have a default schema (like dbo in SQL Server, public in PostgreSQL).
+    Example in SQL (creating a schema):
+                      CREATE SCHEMA HR;
