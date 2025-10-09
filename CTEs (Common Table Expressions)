@@ -177,11 +177,11 @@ Avoid unnecessary CTEs for very simple queries — sometimes a subquery or JOIN 
 Chain multiple CTEs for stepwise complex calculations.
 
 🔹 Summary Table of CTEs
-Feature	Description	Example
-Simple CTE	Temporary named result set	WITH CTE AS (SELECT * FROM Employees) SELECT * FROM CTE;
-Chained CTEs	Multiple CTEs in sequence	WITH CTE1 AS(...), CTE2 AS(...) SELECT ...
-Recursive CTE	Handle hierarchical data	WITH RecCTE AS (...) SELECT * FROM RecCTE;
-CTE + DML	Update/Insert/Delete using CTE	WITH CTE AS(...) UPDATE Employees SET ... WHERE EmpID IN (SELECT ...)
+Feature	                              Description	                                                                     Example
+Simple CTE          	      Temporary named result set	                                                  WITH CTE AS (SELECT * FROM Employees) SELECT * FROM CTE;
+Chained CTEs	              Multiple CTEs in sequence	                                                      WITH CTE1 AS(...), CTE2 AS(...) SELECT ...
+Recursive CTE               	Handle hierarchical data	                                                  WITH RecCTE AS (...) SELECT * FROM RecCTE;
+CTE + DML	                  Update/Insert/Delete using CTE	                                              WITH CTE AS(...) UPDATE Employees SET ... WHERE EmpID IN (SELECT ...)
 
 ✅ In short:
 
