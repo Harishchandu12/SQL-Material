@@ -1,0 +1,138 @@
+DQL (Data Query Language) is used to query (retrieve) information from a database.
+
+👉 It focuses on reading data, not modifying or deleting it.
+It helps users ask questions about data and get meaningful results.
+
+🔹 Main DQL Command
+Command	Purpose
+SELECT	Used to retrieve data from one or more tables
+
+✅ In short:
+
+DQL = The “reading” part of SQL — it uses only the SELECT statement.
+
+🔹 Syntax of SELECT Statement
+SELECT column1, column2, ...
+FROM table_name
+WHERE condition
+GROUP BY column
+HAVING condition
+ORDER BY column ASC|DESC;
+
+🔹 Example Table: Employees
+EmpID	EmpName	Department	Salary
+1	John	HR	50000
+2	Alice	IT	70000
+3	Bob	IT	60000
+4	Eve	Finance	55000
+🔹 Examples of DQL (SELECT) Queries
+➤ 1. Retrieve all columns
+SELECT * FROM Employees;
+
+
+📄 Fetches all rows and all columns from the table.
+
+➤ 2. Retrieve specific columns
+SELECT EmpName, Salary FROM Employees;
+
+
+📄 Shows only employee names and their salaries.
+
+➤ 3. Filter data using WHERE
+SELECT * FROM Employees
+WHERE Department = 'IT';
+
+
+📄 Shows only employees who work in the IT department.
+
+➤ 4. Sort data using ORDER BY
+SELECT * FROM Employees
+ORDER BY Salary DESC;
+
+
+📄 Displays employees ordered by salary, highest to lowest.
+
+➤ 5. Group data using GROUP BY
+SELECT Department, AVG(Salary) AS AvgSalary
+FROM Employees
+GROUP BY Department;
+
+
+📄 Shows average salary per department.
+
+➤ 6. Filter grouped data using HAVING
+SELECT Department, AVG(Salary) AS AvgSalary
+FROM Employees
+GROUP BY Department
+HAVING AVG(Salary) > 55000;
+
+
+📄 Shows only departments where the average salary is greater than 55,000.
+
+➤ 7. Use aggregate functions
+SELECT COUNT(*) AS TotalEmployees,
+       MAX(Salary) AS HighestSalary,
+       MIN(Salary) AS LowestSalary,
+       AVG(Salary) AS AverageSalary
+FROM Employees;
+
+
+📄 Performs calculations on the data.
+
+➤ 8. Use aliases for clarity
+SELECT EmpName AS Employee, Salary AS MonthlyPay
+FROM Employees;
+
+
+📄 Gives columns custom names in the output.
+
+➤ 9. Combine tables using JOIN (advanced DQL)
+
+If there’s another table called Departments:
+
+DeptID	DeptName
+1	HR
+2	IT
+3	Finance
+
+You can combine both:
+
+SELECT Employees.EmpName, Departments.DeptName
+FROM Employees
+JOIN Departments
+ON Employees.Department = Departments.DeptName;
+
+
+📄 Shows employee names along with their department names.
+
+🔹 Summary Table
+Command	                         Category                                 Purpose                                	Example
+SELECT	                            DQL                         	Retrieves data from a database	           SELECT * FROM Employees;
+WHERE                          	Filter rows	                                SELECT * FROM Employees WHERE Department='IT';	
+ORDER BY	                      Sort results	                              SELECT * FROM Employees ORDER BY Salary DESC;	
+GROUP BY	                         Group data	                              SELECT Department, COUNT(*) FROM Employees GROUP BY Department;	
+HAVING	                      Filter groups	                                SELECT Department, AVG(Salary) FROM Employees GROUP BY Department HAVING AVG(Salary) > 50000;	
+
+🔹 Difference Between DQL and DML
+
+Feature                                    DQL	                                           DML
+Full Form                          	Data Query Language	                            Data Manipulation Language
+Purpose                           	Retrieve data	                                  Insert, update, or delete data
+Main Command                        	SELECT	                                      INSERT, UPDATE, DELETE
+Changes Data?	                         ❌ No	                                          ✅ Yes
+Example	                            SELECT * FROM Employees;	                      INSERT INTO Employees VALUES (...);
+
+🔹 Quick Visualization
+Database
+│
+├── DDL → Defines structure (CREATE, ALTER)
+├── DML → Manipulates data (INSERT, UPDATE, DELETE)
+├── DQL → Reads data (SELECT)
+├── TCL → Controls transactions (COMMIT, ROLLBACK)
+└── DCL → Controls permissions (GRANT, REVOKE)
+
+
+✅ In short:
+
+DQL (Data Query Language) is all about retrieving data from a database using the SELECT command —
+It doesn’t change the data, it just queries and displays it.
