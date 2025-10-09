@@ -1,0 +1,141 @@
+Window functions (also called analytic functions) perform calculations across a set of table rows called a “window”, which is defined relative to the current row.
+
+Unlike regular aggregate functions:
+
+Aggregate functions collapse rows into a single summary row.
+
+Window functions keep all rows intact while performing calculations across a subset (window) of rows.
+
+🔹 Key Concepts
+
+Window: The set of rows used for calculation (can be all rows, partitioned rows, or ordered rows).
+
+OVER() clause: Defines the window for the function.
+
+PARTITION BY: Divides rows into groups (like GROUP BY but doesn’t collapse rows).
+
+ORDER BY: Defines the order of rows within a partition (important for ranking or running totals).
+
+🔹 Basic Syntax
+window_function(arguments) OVER (
+    [PARTITION BY column1, column2, ...]
+    [ORDER BY column1 [ASC|DESC], ...]
+    [ROWS frame_specification]
+)
+
+
+window_function(arguments) → e.g., SUM(Salary), AVG(Salary), ROW_NUMBER()
+
+PARTITION BY → divides data into groups
+
+ORDER BY → orders rows within the window
+
+ROWS → defines a frame relative to the current row (e.g., UNBOUNDED PRECEDING, CURRENT ROW)
+
+🔹 Common Window Functions
+Function	Purpose	Example
+ROW_NUMBER()	Assigns a unique sequential number to each row in a partition	ROW_NUMBER() OVER(PARTITION BY Department ORDER BY Salary DESC)
+RANK()	Gives rank with gaps for ties	RANK() OVER(PARTITION BY Department ORDER BY Salary DESC)
+DENSE_RANK()	Gives rank without gaps for ties	DENSE_RANK() OVER(PARTITION BY Department ORDER BY Salary DESC)
+NTILE(n)	Divides rows into n roughly equal buckets	NTILE(4) OVER(ORDER BY Salary DESC)
+SUM()	Running total across a window	SUM(Salary) OVER(PARTITION BY Department ORDER BY Salary)
+AVG()	Average over a window	AVG(Salary) OVER(PARTITION BY Department)
+MIN()/MAX()	Min/max in a window	MAX(Salary) OVER(PARTITION BY Department)
+LEAD()	Access the next row’s value	LEAD(Salary,1) OVER(ORDER BY Salary)
+LAG()	Access the previous row’s value	LAG(Salary,1) OVER(ORDER BY Salary)
+FIRST_VALUE() / LAST_VALUE()	First/last value in a window	FIRST_VALUE(Salary) OVER(PARTITION BY Department ORDER BY Salary)
+🔹 Sample Table: Employees
+EmpID	EmpName	Department	Salary
+1	John	HR	50000
+2	Alice	IT	70000
+3	Bob	IT	60000
+4	Eve	Finance	55000
+5	Charlie	IT	65000
+6	David	HR	52000
+🔹 1. ROW_NUMBER() Example
+
+Assign a row number within each department ordered by salary descending:
+
+SELECT EmpName, Department, Salary,
+       ROW_NUMBER() OVER(PARTITION BY Department ORDER BY Salary DESC) AS RowNum
+FROM Employees;
+
+
+Result:
+
+EmpName	Department	Salary	RowNum
+David	HR	52000	1
+John	HR	50000	2
+Alice	IT	70000	1
+Charlie	IT	65000	2
+Bob	IT	60000	3
+Eve	Finance	55000	1
+🔹 2. RANK() vs DENSE_RANK() Example
+SELECT EmpName, Department, Salary,
+       RANK() OVER(PARTITION BY Department ORDER BY Salary DESC) AS RankVal,
+       DENSE_RANK() OVER(PARTITION BY Department ORDER BY Salary DESC) AS DenseRankVal
+FROM Employees;
+
+
+RANK() → Leaves gaps when there are ties
+
+DENSE_RANK() → No gaps for ties
+
+🔹 3. LEAD() and LAG() Example
+SELECT EmpName, Department, Salary,
+       LAG(Salary, 1) OVER(PARTITION BY Department ORDER BY Salary) AS PrevSalary,
+       LEAD(Salary, 1) OVER(PARTITION BY Department ORDER BY Salary) AS NextSalary
+FROM Employees;
+
+
+LAG() → Look at the previous row in the ordered window
+
+LEAD() → Look at the next row in the ordered window
+
+🔹 4. Running Total Using SUM()
+SELECT EmpName, Department, Salary,
+       SUM(Salary) OVER(PARTITION BY Department ORDER BY Salary ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS RunningTotal
+FROM Employees;
+
+
+Calculates a cumulative sum of salaries within each department.
+
+🔹 5. FIRST_VALUE() / LAST_VALUE() Example
+SELECT EmpName, Department, Salary,
+       FIRST_VALUE(Salary) OVER(PARTITION BY Department ORDER BY Salary DESC) AS HighestSalaryInDept,
+       LAST_VALUE(Salary) OVER(PARTITION BY Department ORDER BY Salary DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS LowestSalaryInDept
+FROM Employees;
+
+
+FIRST_VALUE() → Highest salary in department (first in order)
+
+LAST_VALUE() → Lowest salary in department (last in order)
+
+🔹 Key Points About Window Functions
+
+Do not collapse rows — you still get one row per record.
+
+Can be combined with PARTITION BY to calculate per-group metrics.
+
+ORDER BY inside the window is important for ranking, running totals, or lead/lag functions.
+
+Very useful for reporting, analytics, and advanced business queries.
+
+🔹 Summary Table of Window Functions
+Function	Purpose	Syntax Example
+ROW_NUMBER()	Sequential number per partition	ROW_NUMBER() OVER(PARTITION BY Dept ORDER BY Salary DESC)
+RANK()	Rank with gaps	RANK() OVER(PARTITION BY Dept ORDER BY Salary DESC)
+DENSE_RANK()	Rank without gaps	DENSE_RANK() OVER(PARTITION BY Dept ORDER BY Salary DESC)
+NTILE(n)	Divides into n buckets	NTILE(4) OVER(ORDER BY Salary DESC)
+SUM()	Running total	SUM(Salary) OVER(PARTITION BY Dept ORDER BY Salary)
+AVG()	Average in window	AVG(Salary) OVER(PARTITION BY Dept)
+MIN()/MAX()	Min/max in window	MAX(Salary) OVER(PARTITION BY Dept)
+LAG()	Previous row value	LAG(Salary,1) OVER(PARTITION BY Dept ORDER BY Salary)
+LEAD()	Next row value	LEAD(Salary,1) OVER(PARTITION BY Dept ORDER BY Salary)
+FIRST_VALUE()	First value in window	FIRST_VALUE(Salary) OVER(PARTITION BY Dept ORDER BY Salary DESC)
+LAST_VALUE()	Last value in window	LAST_VALUE(Salary) OVER(PARTITION BY Dept ORDER BY Salary ASC)
+
+✅ In short:
+
+Window functions let you perform advanced calculations across rows while keeping all rows visible.
+They are essential for ranking, running totals, lead/lag analysis, and analytics.
