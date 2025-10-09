@@ -1,0 +1,284 @@
+A JOIN is used to combine rows from two or more tables based on a related column between them.
+
+Joins allow us to query multiple tables simultaneously.
+
+The relationship is usually established via primary key and foreign key.
+
+Joins are critical for relational databases where data is normalized.
+
+🔹 Types of Joins
+
+There are mainly 5 types of joins:
+
+INNER JOIN
+
+LEFT (OUTER) JOIN
+
+RIGHT (OUTER) JOIN
+
+FULL (OUTER) JOIN
+
+CROSS JOIN
+
+Some databases also support SELF JOIN and NATURAL JOIN.
+
+🔹 Example Tables
+
+Employees Table
+
+EmpID	EmpName	DeptID	Salary
+1	John	1	50000
+2	Alice	2	70000
+3	Bob	2	60000
+4	Eve	3	55000
+5	Charlie	2	65000
+6	David	1	52000
+
+Departments Table
+
+DeptID	DeptName
+1	HR
+2	IT
+3	Finance
+4	Marketing
+🔹 1️⃣ INNER JOIN
+
+Definition:
+Returns rows when there is a match in both tables.
+
+Syntax:
+
+SELECT columns
+FROM table1
+INNER JOIN table2
+ON table1.column = table2.column;
+
+
+Example: Get employees with department names:
+
+SELECT e.EmpName, e.Salary, d.DeptName
+FROM Employees e
+INNER JOIN Departments d
+ON e.DeptID = d.DeptID;
+
+
+Result:
+
+EmpName	Salary	DeptName
+John	50000	HR
+David	52000	HR
+Alice	70000	IT
+Bob	60000	IT
+Charlie	65000	IT
+Eve	55000	Finance
+
+✅ Only rows with matching DeptID in both tables are returned.
+
+🔹 2️⃣ LEFT (OUTER) JOIN
+
+Definition:
+Returns all rows from the left table and matching rows from the right table.
+
+If there is no match, right table columns return NULL.
+
+Syntax:
+
+SELECT columns
+FROM table1
+LEFT JOIN table2
+ON table1.column = table2.column;
+
+
+Example: List all employees and their departments:
+
+SELECT e.EmpName, e.Salary, d.DeptName
+FROM Employees e
+LEFT JOIN Departments d
+ON e.DeptID = d.DeptID;
+
+
+Similar to INNER JOIN but includes all employees, even if their DeptID has no match.
+
+✅ If an employee has DeptID = 5 (non-existent), DeptName would be NULL.
+
+🔹 3️⃣ RIGHT (OUTER) JOIN
+
+Definition:
+Returns all rows from the right table and matching rows from the left table.
+
+If there is no match, left table columns return NULL.
+
+Syntax:
+
+SELECT columns
+FROM table1
+RIGHT JOIN table2
+ON table1.column = table2.column;
+
+
+Example: List all departments and employees:
+
+SELECT e.EmpName, e.Salary, d.DeptName
+FROM Employees e
+RIGHT JOIN Departments d
+ON e.DeptID = d.DeptID;
+
+
+Result:
+
+EmpName	Salary	DeptName
+John	50000	HR
+David	52000	HR
+Alice	70000	IT
+Bob	60000	IT
+Charlie	65000	IT
+Eve	55000	Finance
+NULL	NULL	Marketing
+
+✅ Includes all departments, even without employees.
+
+🔹 4️⃣ FULL (OUTER) JOIN
+
+Definition:
+Returns all rows from both tables.
+
+If there is no match, missing side is NULL.
+
+Syntax:
+
+SELECT columns
+FROM table1
+FULL OUTER JOIN table2
+ON table1.column = table2.column;
+
+
+Example: Combine employees and departments completely:
+
+SELECT e.EmpName, e.Salary, d.DeptName
+FROM Employees e
+FULL OUTER JOIN Departments d
+ON e.DeptID = d.DeptID;
+
+
+✅ Output includes:
+
+Matched rows
+
+Employees without a department
+
+Departments without employees
+
+🔹 5️⃣ CROSS JOIN
+
+Definition:
+Returns Cartesian product of the two tables (all combinations).
+
+Syntax:
+
+SELECT columns
+FROM table1
+CROSS JOIN table2;
+
+
+Example: Combine each employee with every department:
+
+SELECT e.EmpName, d.DeptName
+FROM Employees e
+CROSS JOIN Departments d;
+
+
+If 6 employees × 4 departments → 24 rows.
+
+No ON condition is used.
+
+🔹 6️⃣ SELF JOIN
+
+Definition:
+A table joins with itself.
+
+Useful for hierarchical data or comparing rows in the same table.
+
+Example: Find employees and their managers:
+
+SELECT e.EmpName AS Employee, m.EmpName AS Manager
+FROM Employees e
+LEFT JOIN Employees m
+ON e.ManagerID = m.EmpID;
+
+
+Result:
+
+Employee	Manager
+John	NULL
+Alice	John
+Bob	John
+Charlie	Alice
+Eve	NULL
+David	John
+🔹 7️⃣ NATURAL JOIN
+
+Automatically joins tables on columns with the same name.
+
+Avoid explicit ON clause.
+
+Use with caution (can produce unexpected results if column names match unintentionally).
+
+SELECT *
+FROM Employees
+NATURAL JOIN Departments;
+
+
+Joins tables on DeptID automatically.
+
+🔹 Visual Representation of Joins
+Join Type                	Diagram
+INNER JOIN	        Only intersection of tables
+LEFT JOIN	          Left table + matching rows
+RIGHT JOIN         	Right table + matching rows
+FULL JOIN	          All rows from both tables
+CROSS JOIN	        Cartesian product
+SELF JOIN	          Table joined with itself
+
+🔹 Key Points
+
+JOINs combine data from multiple tables efficiently.
+
+Use INNER JOIN for only matching rows.
+
+Use LEFT/RIGHT JOIN for optional relationships.
+
+Use FULL OUTER JOIN when you need all data from both sides.
+
+Use CROSS JOIN for combinations.
+
+Use SELF JOIN for hierarchical data or comparisons.
+
+Always alias tables to make queries readable.
+
+🔹 Performance Tips
+
+Ensure indexed columns are used in ON conditions.
+
+Avoid CROSS JOIN with large tables — can generate huge datasets.
+
+Use INNER JOIN whenever possible for faster performance.
+
+Use EXPLAIN PLAN to check query execution and optimize joins.
+
+🔹 Summary Table of Joins
+Join Type                         	Description	                                         Example
+INNER JOIN	                   Only matching rows	                              SELECT * FROM A INNER JOIN B ON A.id=B.id
+LEFT (OUTER) JOIN	            All rows from left table + matches	              LEFT JOIN
+RIGHT (OUTER) JOIN          	All rows from right table + matches              	RIGHT JOIN
+FULL (OUTER) JOIN	            All rows from both tables	                        FULL JOIN
+CROSS JOIN                  	Cartesian product                               	CROSS JOIN
+SELF JOIN	                    Join table with itself                          	SELF JOIN
+NATURAL JOIN	                Join on columns with same name                  	NATURAL JOIN
+
+✅ In short:
+
+Joins are the backbone of relational SQL.
+
+Choosing the right join type is essential for correct results and performance.
+
+Combine joins with aggregates, subqueries, and window functions for advanced analytics.
