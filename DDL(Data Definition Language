@@ -1,0 +1,144 @@
+DDL (Data Definition Language) refers to the SQL commands used to define, modify, and manage the structure of database objects such as tables, schemas, views, and indexes.
+
+👉 DDL commands affect the structure of the database, not the data itself.
+
+🔹 Common DDL Commands
+
+Command	Full Form	Purpose
+CREATE- Create	Creates new database objects (e.g., tables, views)
+ALTER -	Alter	Modifies an existing database object
+DROP -	Drop	Deletes a database object permanently
+TRUNCATE - Truncate	Removes all records from a table, but keeps its structure
+RENAME- Rename	Renames a database object
+
+🔹 1. CREATE – Create Database Objects
+➤ Purpose:
+
+Used to create new tables, databases, views, or other objects.
+
+➤ Syntax:
+CREATE TABLE table_name (
+    column1 datatype constraint,
+    column2 datatype constraint,
+    ...
+);
+
+➤ Example:
+CREATE TABLE Employees (
+    EmpID INT PRIMARY KEY,
+    EmpName VARCHAR(50) NOT NULL,
+    Department VARCHAR(30),
+    Salary DECIMAL(10, 2),
+    HireDate DATE
+);
+
+
+✅ Explanation:
+
+EmpID – integer, unique identifier (Primary Key)
+
+EmpName – variable-length string, cannot be null
+
+Department – string up to 30 chars
+
+Salary – numeric with 2 decimal places
+
+HireDate – date of joining
+
+🔹 2. ALTER – Modify Existing Objects
+➤ Purpose:
+
+Used to add, modify, or delete columns or constraints in an existing table.
+
+➤ Syntax:
+ALTER TABLE table_name
+ADD column_name datatype;
+
+ALTER TABLE table_name
+MODIFY column_name datatype;
+
+ALTER TABLE table_name
+DROP COLUMN column_name;
+
+➤ Examples:
+➤ Add a new column:
+ALTER TABLE Employees
+ADD Email VARCHAR(100);
+
+➤ Modify data type of a column:
+ALTER TABLE Employees
+MODIFY Salary DECIMAL(12, 2);
+
+➤ Drop a column:
+ALTER TABLE Employees
+DROP COLUMN HireDate;
+
+🔹 3. DROP – Delete Database Objects
+➤ Purpose:
+
+Used to remove an entire database object (like a table, view, or database).
+
+➤ Syntax:
+DROP TABLE table_name;
+
+➤ Example:
+DROP TABLE Employees;
+
+
+⚠️ Note: Once dropped, the table and all its data are permanently deleted.
+
+🔹 4. TRUNCATE – Remove All Data (Keep Structure)
+➤ Purpose:
+
+Used to remove all rows from a table, but keep the table structure for future use.
+
+➤ Syntax:
+TRUNCATE TABLE table_name;
+
+➤ Example:
+TRUNCATE TABLE Employees;
+
+
+✅ Difference between TRUNCATE and DELETE:
+
+Feature	                        TRUNCATE	                                    DELETE
+Removes rows                  	All rows	                                Specific rows (with WHERE)
+Rollback (Undo)                	Not always possible	                      Possible
+Resets Identity (Auto Increment)	Yes	                                     No
+Speed	                           Faster                                 	Slower
+
+🔹 5. RENAME – Change the Name of an Object
+➤ Purpose:
+
+Used to rename a database object (like a table).
+
+➤ Syntax (varies by SQL dialect):
+In Oracle SQL:
+RENAME old_table_name TO new_table_name;
+
+In MySQL / SQL Server:
+ALTER TABLE old_table_name RENAME TO new_table_name;
+
+➤ Example:
+ALTER TABLE Employees RENAME TO Staff;
+
+🔹 Summary Table
+Command	                                                           Purpose	                                                             Example
+CREATE	                                                Creates new table or object	                                               CREATE TABLE Employees (...);
+ALTER	                                                  Modifies table structure	                                                 ALTER TABLE Employees ADD Email VARCHAR(100);
+DROP	                                                     Deletes table permanently	                                             DROP TABLE Employees;
+TRUNCATE                                              	Removes all data, keeps structure	                                         TRUNCATE TABLE Employees;
+RENAME	                                                Renames an object	                                                         ALTER TABLE Employees RENAME TO Staff;
+
+🔹 Quick Visualization
+Database
+│
+├── CREATE → makes new structure
+│
+├── ALTER → changes structure
+│
+├── TRUNCATE → clears data (structure stays)
+│
+├── DROP → removes structure completely
+│
+└── RENAME → changes object’s name
