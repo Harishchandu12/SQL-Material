@@ -1,0 +1,125 @@
+DCL (Data Control Language) is used to control access (permissions) to data in a database.
+
+It manages who can do what — like who can read, insert, update, or delete data in tables.
+
+In short:
+
+DCL commands are about database security and user privileges.
+
+🔹 Common DCL Commands
+Command	                                                                        Purpose
+GRANT                                                        	Gives privileges (permissions) to a user
+REVOKE                                                      	Removes privileges previously given to a user
+
+🔹 1. GRANT
+➤ Purpose:
+
+Used to give access rights or privileges to a specific user or role.
+
+➤ Syntax:
+GRANT privilege_name
+ON object_name
+TO user_name;
+
+➤ Common Privileges:
+Privilege	Description
+SELECT	Allows reading data from a table
+INSERT	Allows inserting new records
+UPDATE	Allows modifying existing records
+DELETE	Allows deleting records
+ALL PRIVILEGES	Gives all permissions on the object
+➤ Example:
+
+Grant permission to a user named ‘John’ to select and insert data into the Employees table:
+
+GRANT SELECT, INSERT
+ON Employees
+TO John;
+
+
+Grant all privileges on a table to a user:
+
+GRANT ALL PRIVILEGES
+ON Employees
+TO John;
+
+
+Grant privileges to multiple users:
+
+GRANT SELECT
+ON Employees
+TO John, Alice, Bob;
+
+🔹 2. REVOKE
+➤ Purpose:
+
+Used to remove or withdraw privileges that were previously granted.
+
+➤ Syntax:
+REVOKE privilege_name
+ON object_name
+FROM user_name;
+
+➤ Example:
+
+Revoke INSERT privilege from John:
+
+REVOKE INSERT
+ON Employees
+FROM John;
+
+
+Revoke all privileges:
+
+REVOKE ALL PRIVILEGES
+ON Employees
+FROM John;
+
+🔹 3. (Optional) GRANT with ADMIN OPTION (Advanced)
+
+This allows the user to pass on privileges to other users.
+
+➤ Example:
+GRANT SELECT, INSERT
+ON Employees
+TO John
+WITH GRANT OPTION;
+
+
+Now John can grant the same privileges to others.
+
+🔹 Summary Table
+
+Command	                       Description	                                                       Example
+GRANT	                     Gives a user privileges	                                      GRANT SELECT ON Employees TO John;
+REVOKE	                   Removes privileges from a user	                                REVOKE SELECT ON Employees FROM John;
+
+🔹 DCL in Real Life
+
+Think of DCL as database security control:
+
+Database admins (DBAs) use DCL to control access.
+
+Users get only the privileges they need (for security).
+
+Example scenario:
+
+Admin grants read-only access to the HR team.
+
+Admin revokes update/delete permissions from interns.
+
+🔹 Full SQL Command  Family  Recap
+
+Category                        	                     Full Form	                                 Purpose	                                          Example Commands
+DDL	                                           Data Definition Language	                   Defines database structure                           CREATE, ALTER, DROP
+DML	                                           Data Manipulation Language	                 Manipulates data	                                    SELECT, INSERT, UPDATE, DELETE
+DCL	                                           Data Control Language                       Manages user privileges	                            GRANT, REVOKE
+TCL	                                           Transaction Control Language	               Manages transactions	                                COMMIT, ROLLBACK, SAVEPOINT
+
+✅ In short:
+
+DCL = Data Control Language
+It’s all about who can access or modify what in your database.
+
+🔸 GRANT → Give permission
+🔸 REVOKE → Take permission back
