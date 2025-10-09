@@ -1,0 +1,163 @@
+TCL (Transaction Control Language) is a set of SQL commands used to manage transactions within a database.
+
+A transaction is a single logical unit of work that may consist of one or more SQL statements — for example:
+
+Inserting money into one account and deducting it from another (bank transfer).
+
+👉 TCL commands ensure data consistency, accuracy, and integrity by controlling how changes made by DML commands (INSERT, UPDATE, DELETE) are saved or undone.
+
+🔹 Common TCL Commands
+
+Command	                                                                           Purpose
+COMMIT	                                                              Saves all changes made during the transaction
+ROLLBACK                                                            	Undoes changes made during the transaction
+SAVEPOINT	                                                            Sets a point to which you can roll back later
+SET TRANSACTION                                                     	Defines properties for a transaction (optional, advanced use)
+
+🔹 1. COMMIT
+➤ Purpose:
+
+Used to permanently save all changes made during the current transaction.
+
+➤ Syntax:
+COMMIT;
+
+➤ Example:
+INSERT INTO Employees (EmpID, EmpName, Department, Salary)
+VALUES (9, 'Henry', 'Sales', 58000);
+
+UPDATE Employees
+SET Salary = 60000
+WHERE EmpID = 9;
+
+COMMIT;
+
+
+✅ After COMMIT, the changes are permanent — you cannot undo them with ROLLBACK.
+
+🔹 2. ROLLBACK
+➤ Purpose:
+
+Used to undo all the changes made in the current transaction before COMMIT.
+
+➤ Syntax:
+ROLLBACK;
+
+➤ Example:
+UPDATE Employees
+SET Salary = 90000
+WHERE EmpID = 2;
+
+-- Oops! That was a mistake
+ROLLBACK;
+
+
+✅ All changes made since the last COMMIT or SAVEPOINT are undone.
+
+🔹 3. SAVEPOINT
+➤ Purpose:
+
+Used to create a temporary point within a transaction that you can roll back to without undoing the entire transaction.
+
+➤ Syntax:
+SAVEPOINT savepoint_name;
+
+➤ Example:
+BEGIN TRANSACTION;
+
+INSERT INTO Employees VALUES (10, 'Ivy', 'HR', 50000);
+SAVEPOINT SP1;
+
+UPDATE Employees SET Salary = 70000 WHERE EmpID = 1;
+SAVEPOINT SP2;
+
+DELETE FROM Employees WHERE EmpID = 3;
+
+-- Undo only up to SP2
+ROLLBACK TO SP2;
+
+COMMIT;
+
+
+✅ This example:
+
+Inserts Ivy → (SP1 created)
+
+Updates John’s salary → (SP2 created)
+
+Deletes Bob → mistake
+→ Rolled back only to SP2, so the delete is undone, but insert and update stay.
+
+🔹 4. SET TRANSACTION (optional, advanced)
+➤ Purpose:
+
+Used to specify characteristics of a transaction, such as read/write mode or isolation level.
+
+➤ Example:
+SET TRANSACTION READ WRITE;
+
+
+or
+
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+
+(Used mostly in advanced database management scenarios.)
+
+🔹 Real-World Example (Bank Transfer)
+
+Imagine transferring ₹1000 from Account A to Account B:
+
+BEGIN TRANSACTION;
+
+UPDATE Accounts
+SET Balance = Balance - 1000
+WHERE AccountID = 'A101';
+
+UPDATE Accounts
+SET Balance = Balance + 1000
+WHERE AccountID = 'B202';
+
+-- If both updates succeed
+COMMIT;
+
+-- If something fails (e.g., system error)
+ROLLBACK;
+
+
+✅ Either both operations happen (transfer successful) or none happen (rolled back) — ensuring data consistency.
+
+🔹 Summary Table
+
+Command                         	Description	                                              Example
+COMMIT	                      Permanently saves changes	                                     COMMIT;
+ROLLBACK	                    Undoes uncommitted changes	                                   ROLLBACK;
+SAVEPOINT                       	Creates a checkpoint                                     	SAVEPOINT SP1;
+ROLLBACK TO SAVEPOINT	        Undoes changes up to a savepoint	                            ROLLBACK TO SP1;
+SET TRANSACTION	              Sets transaction properties	                                  SET TRANSACTION READ WRITE;
+
+🔹 Relationship Between DML and TCL
+DML Command	                                               What TCL Does
+INSERT, UPDATE, DELETE	                            These modify data (but changes are temporary)
+COMMIT	                                            Makes the changes permanent
+ROLLBACK	                                          Reverses the changes (if not committed yet)
+
+🔹 Quick Visualization
+BEGIN TRANSACTION
+   ↓
+   [INSERT / UPDATE / DELETE]
+   ↓
+SAVEPOINT (optional)
+   ↓
+   ├── COMMIT → Save permanently
+   └── ROLLBACK → Undo changes
+
+
+✅ In short:
+
+TCL = Transaction Control Language
+It ensures safe, consistent, and reliable changes to your data.
+
+🔸 COMMIT → Save
+🔸 ROLLBACK → Undo
+🔸 SAVEPOINT → Checkpoint
