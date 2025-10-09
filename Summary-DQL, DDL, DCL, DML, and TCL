@@ -1,0 +1,52 @@
+SQL Command Categories Summary
+
+Category	                      Purpose        	                                                              Main Commands                                  Examples
+DDL       	Defines and modifies the structure of databaseobjects like tables, schemas, or views.	     CREATE, ALTER, DROP, TRUNCATE, RENAME	         CREATE TABLE Employees (...);
+DML       	Used to insert, modify, or delete data in existing tables.                                	INSERT, UPDATE, DELETE	                       INSERT INTO Employees VALUES (1, 'John', 'HR', 50000);
+DQL	        Used to query (fetch/retrieve) data from the database.	                                       SELECT	                                     SELECT * FROM Employees WHERE Department='IT';
+DCL    	 	  Controls user access and permissions on database objects.	                                     GRANT, REVOKE	                                GRANT SELECT ON Employees TO John;
+TCL	      	Manages transactions to maintain data consistency and integrity.	                         COMMIT, ROLLBACK, SAVEPOINT, SET TRANSACTION     	COMMIT;, ROLLBACK;
+
+🧠 Quick Understanding
+Type           	What It Does	                           Affects
+DDL	          Defines database structure              Database schema
+DML          	Manipulates data	                      Table data
+DQL	          Retrieves data	                        Table data (read-only)
+DCL	         Manages access control	                  Users & permissions
+TCL	         Controls data transactions	              Session & transaction level
+
+🔹 Simple Example Flow
+-- 1️⃣ DDL: Create table
+CREATE TABLE Employees (
+    EmpID INT PRIMARY KEY,
+    EmpName VARCHAR(50),
+    Department VARCHAR(30),
+    Salary DECIMAL(10,2)
+);
+
+-- 2️⃣ DML: Insert data
+INSERT INTO Employees VALUES (1, 'Alice', 'IT', 70000);
+
+-- 3️⃣ DQL: Retrieve data
+SELECT * FROM Employees;
+
+-- 4️⃣ TCL: Control transaction
+COMMIT;
+
+-- 5️⃣ DCL: Grant permissions
+GRANT SELECT ON Employees TO John;
+
+🔹 Mnemonic to Remember:
+
+💡 “D-D-D-T-D” → DDL, DML, DQL, TCL, DCL
+Think of it as:
+Define → Manipulate → Query → Transact → Control
+
+✅ In short:
+
+Category	Focus	Key Idea
+DDL	Structure	Defines the database
+DML	Data	Adds or changes data
+DQL	Query	Reads data
+TCL	Transaction	Saves or undoes changes
+DCL	Control	Manages user permissions
