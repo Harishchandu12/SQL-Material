@@ -1,0 +1,339 @@
+Aggregate functions perform a calculation on multiple rows of a table and return a single value (summary result).
+
+They are commonly used in:
+
+Reports
+
+Data analysis
+
+Summaries (totals, averages, counts, etc.)
+
+👉 Usually used with:
+
+The SELECT statement
+
+GROUP BY and HAVING clauses
+
+🔹 Common Aggregate Functions
+Function	                             Description	                                                     Example
+COUNT()                         	Counts the number of rows (records)	                                   COUNT(*)
+SUM()	                            Adds up all numeric values	                                           SUM(Salary)
+AVG()	                            Calculates the average of numeric values	                             AVG(Salary)
+MIN()	                            Finds the smallest value                                               MIN(Salary)
+MAX()	                            Finds the largest value	                                               MAX(Salary)
+
+Let’s use a sample table called Employees 👇
+
+EmpID	EmpName	Department	Salary
+1	John	HR	50000
+2	Alice	IT	70000
+3	Bob	IT	60000
+4	Eve	Finance	55000
+5	Charlie	IT	65000
+🔹 1. COUNT()
+➤ Purpose:
+
+Returns the number of rows or non-null values.
+
+➤ Syntax:
+SELECT COUNT(column_name) FROM table_name;
+
+➤ Examples:
+
+Count all employees:
+
+SELECT COUNT(*) AS TotalEmployees
+FROM Employees;
+
+
+Count employees in the IT department:
+
+SELECT COUNT(*) AS IT_Employees
+FROM Employees
+WHERE Department = 'IT';
+
+🔹 2. SUM()
+➤ Purpose:
+
+Calculates the total sum of a numeric column.
+
+➤ Syntax:
+SELECT SUM(column_name) FROM table_name;
+
+➤ Example:
+
+Total salary of all employees:
+
+SELECT SUM(Salary) AS TotalSalary
+FROM Employees;
+
+
+Total salary for IT department:
+
+SELECT SUM(Salary) AS IT_SalaryTotal
+FROM Employees
+WHERE Department = 'IT';
+
+🔹 3. AVG()
+➤ Purpose:
+
+Finds the average (mean) of numeric values.
+
+➤ Syntax:
+SELECT AVG(column_name) FROM table_name;
+
+➤ Example:
+
+Average salary of all employees:
+
+SELECT AVG(Salary) AS AvgSalary
+FROM Employees;
+
+
+Average salary per department:
+
+SELECT Department, AVG(Salary) AS AvgSalary
+FROM Employees
+GROUP BY Department;
+
+🔹 4. MIN()
+➤ Purpose:
+
+Finds the minimum (smallest) value in a column.
+
+➤ Syntax:
+SELECT MIN(column_name) FROM table_name;
+
+➤ Example:
+
+Find the lowest salary:
+
+SELECT MIN(Salary) AS LowestSalary
+FROM Employees;
+
+
+Find the lowest salary per department:
+
+SELECT Department, MIN(Salary) AS MinSalary
+FROM Employees
+GROUP BY Department;
+
+🔹 5. MAX()
+➤ Purpose:
+
+Finds the maximum (largest) value in a column.
+
+➤ Syntax:
+SELECT MAX(column_name) FROM table_name;
+
+➤ Example:
+
+Find the highest salary:
+
+SELECT MAX(Salary) AS HighestSalary
+FROM Employees;
+
+
+Find the highest salary per department:
+
+SELECT Department, MAX(Salary) AS MaxSalary
+FROM Employees
+GROUP BY Department;
+
+🔹 Combining Aggregate Functions
+
+You can use multiple aggregate functions in one query:
+
+SELECT
+    COUNT(*) AS TotalEmployees,
+    SUM(Salary) AS TotalSalary,
+    AVG(Salary) AS AverageSalary,
+    MIN(Salary) AS LowestSalary,
+    MAX(Salary) AS HighestSalary
+FROM Employees;
+
+🔹 Using Aggregate Functions with GROUP BY
+
+GROUP BY groups rows that have the same values in specified columns, allowing aggregates for each group.
+
+Example:
+
+SELECT Department,
+       COUNT(*) AS NumEmployees,
+       AVG(Salary) AS AvgSalary,
+       MAX(Salary) AS MaxSalary
+FROM Employees
+GROUP BY Department;
+
+
+Output:
+
+Department	NumEmployees	AvgSalary	MaxSalary
+HR	1	50000	50000
+IT	3	65000	70000
+Finance	1	55000	55000
+🔹 Using HAVING with Aggregate Functions
+
+HAVING filters groups created by GROUP BY (similar to WHERE, but for grouped data).
+
+Example:
+
+SELECT Department, AVG(Salary) AS AvgSalary
+FROM Employees
+GROUP BY Department
+HAVING AVG(Salary) > 55000;
+
+
+📄 Displays only departments with an average salary greater than 55,000.
+
+🔹 Summary Table
+Function	Description	Example
+COUNT()	Counts rows	SELECT COUNT(*) FROM Employees;
+SUM()	Adds values	SELECT SUM(Salary) FROM Employees;
+AVG()	Average value	SELECT AVG(Salary) FROM Employees;
+MIN()	Smallest value	SELECT MIN(Salary) FROM Employees;
+MAX()	Largest value	SELECT MAX(Salary) FROM Employees;
+
+✅ In short:
+
+Aggregate functions summarize data — they return a single value from multiple rows.
+
+Used with:
+
+SELECT
+
+GROUP BY
+
+HAVING
+
+----Beyond the basic aggregate functions (COUNT, SUM, AVG, MIN, MAX) in SQL, there are several additional aggregate functions and useful variants you can use depending on your database system (MySQL, SQL Server, Oracle, PostgreSQL). Let’s go through them in detail.
+
+🔹 1. COUNT(DISTINCT column)
+➤ Purpose:
+
+Counts unique values in a column, ignoring duplicates.
+
+➤ Example:
+SELECT COUNT(DISTINCT Department) AS UniqueDepartments
+FROM Employees;
+
+
+📄 Counts how many distinct departments exist.
+
+🔹 2. VARIANCE() / VAR_POP() / VAR_SAMP()
+➤ Purpose:
+
+Calculates variance, which measures how much values differ from the mean.
+
+➤ Examples:
+
+Variance of salaries (population):
+
+SELECT VAR_POP(Salary) AS SalaryVariance
+FROM Employees;
+
+
+Sample variance (for a subset):
+
+SELECT VAR_SAMP(Salary) AS SalarySampleVariance
+FROM Employees;
+
+🔹 3. STDDEV() / STDDEV_POP() / STDDEV_SAMP()
+➤ Purpose:
+
+Calculates standard deviation, the square root of variance — tells you how spread out the values are.
+
+➤ Examples:
+SELECT STDDEV_POP(Salary) AS SalaryStdDev
+FROM Employees;
+
+SELECT STDDEV_SAMP(Salary) AS SalarySampleStdDev
+FROM Employees;
+
+🔹 4. GROUP_CONCAT() / STRING_AGG() / LISTAGG()
+➤ Purpose:
+
+Concatenates values from multiple rows into a single string. Useful for reporting.
+
+➤ Examples:
+
+MySQL:
+
+SELECT Department, GROUP_CONCAT(EmpName) AS Employees
+FROM Employees
+GROUP BY Department;
+
+
+SQL Server:
+
+SELECT Department, STRING_AGG(EmpName, ', ') AS Employees
+FROM Employees
+GROUP BY Department;
+
+
+Oracle:
+
+SELECT Department, LISTAGG(EmpName, ', ') WITHIN GROUP (ORDER BY EmpName) AS Employees
+FROM Employees
+GROUP BY Department;
+
+🔹 5. FIRST() / LAST() (Database-specific)
+➤ Purpose:
+
+Returns the first or last value in a group.
+
+➤ Example (SQL Server / PostgreSQL variant):
+SELECT Department,
+       FIRST_VALUE(Salary) OVER (PARTITION BY Department ORDER BY EmpID) AS FirstSalary
+FROM Employees;
+
+
+⚠️ Note: These are window functions but often used with aggregates for reporting.
+
+🔹 6. MEDIAN() / PERCENTILE_CONT() / PERCENTILE_DISC()
+➤ Purpose:
+
+Calculates the median or percentile values in a group.
+
+➤ Example (Oracle / PostgreSQL):
+SELECT MEDIAN(Salary) AS MedianSalary
+FROM Employees;
+
+
+Percentile (50th percentile = median):
+
+SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY Salary) AS MedianSalary
+FROM Employees;
+
+🔹 7. CUME_DIST() / RANK() / DENSE_RANK() (Advanced aggregates)
+➤ Purpose:
+
+Calculate relative ranking of values within a group. Often combined with aggregate analysis.
+
+SELECT EmpName, Salary,
+       RANK() OVER (PARTITION BY Department ORDER BY Salary DESC) AS SalaryRank
+FROM Employees;
+
+🔹 8. BITWISE_AGG() (Some databases)
+
+Aggregates numeric values using bitwise OR / AND.
+
+Rare, but useful for flags or permissions aggregation.
+
+🔹 9. Custom Aggregates
+
+Many databases allow you to create user-defined aggregate functions, e.g., to calculate geometric mean, weighted averages, etc.
+
+🔹 Quick Summary Table of Advanced Aggregates
+Function	                                            Purpose	                                                         Example
+COUNT(DISTINCT col)       	                       Count unique values	                                           COUNT(DISTINCT Department)
+VAR_POP() / VAR_SAMP()	                             Variance	                                                     VAR_POP(Salary)
+STDDEV_POP() / STDDEV_SAMP()	                     Standard deviation	                                             STDDEV_POP(Salary)
+GROUP_CONCAT() / STRING_AGG() / LISTAGG()       	Combine strings from multiple rows                              	GROUP_CONCAT(EmpName)
+FIRST_VALUE() / LAST_VALUE()	                    First/last value in group	                                    FIRST_VALUE(Salary) OVER (PARTITION BY Dept)
+MEDIAN() / PERCENTILE_CONT()	                       Median / percentile                                       	MEDIAN(Salary)
+RANK() / DENSE_RANK()                          	Rank values in a group	                                     RANK() OVER (PARTITION BY Dept ORDER BY Salary DESC)
+
+✅ In short:
+Aggregate functions are not limited to COUNT, SUM, AVG, MIN, MAX.
+Advanced aggregates like variance, standard deviation, median, concatenation, and ranking are extremely useful for data analysis, reporting, and business intelligence.
