@@ -1,0 +1,151 @@
+DML (Data Manipulation Language) consists of SQL commands used to manipulate data stored in database tables — meaning, you can insert, retrieve, update, and delete data.
+
+👉 Unlike DDL (Data Definition Language), which changes the structure of the database, DML works with the actual data inside the tables.
+
+🔹 Common DML Commands
+Command  	Full Form                       	Purpose
+SELECT	  Retrieve data	            Fetches data from tables
+INSERT	  Insert data	              Adds new rows into a table
+UPDATE	  Update data             	Modifies existing data in a table
+DELETE	  Delete data	              Removes data from a table
+
+Let’s use a sample table called Employees for examples 👇
+
+EmpID            	EmpName	        Department	            Salary
+1                	John           	HR	                    50000
+2               	Alice         	IT	                    70000
+3               	Bob           	IT	                    60000
+4	                Eve	            Finance	                55000
+
+🔹 1. SELECT – Retrieve Data
+➤ Purpose:
+
+Used to fetch data from one or more tables.
+
+➤ Syntax:
+SELECT column1, column2, ...
+FROM table_name
+WHERE condition
+ORDER BY column ASC|DESC;
+
+➤ Examples:
+Example 1: Retrieve all columns
+SELECT * FROM Employees;
+
+Example 2: Retrieve specific columns
+SELECT EmpName, Salary FROM Employees;
+
+Example 3: Filter data with WHERE
+SELECT * FROM Employees
+WHERE Department = 'IT';
+
+Example 4: Sort results
+SELECT * FROM Employees
+ORDER BY Salary DESC;
+
+Example 5: Aggregate data
+SELECT Department, AVG(Salary) AS AvgSalary
+FROM Employees
+GROUP BY Department;
+
+🔹 2. INSERT – Add New Data
+➤ Purpose:
+
+Used to insert new records (rows) into a table.
+
+➤ Syntax:
+INSERT INTO table_name (column1, column2, ...)
+VALUES (value1, value2, ...);
+
+➤ Examples:
+Example 1: Insert one record
+INSERT INTO Employees (EmpID, EmpName, Department, Salary)
+VALUES (5, 'Charlie', 'Marketing', 65000);
+
+Example 2: Insert multiple rows
+INSERT INTO Employees (EmpID, EmpName, Department, Salary)
+VALUES
+(6, 'David', 'HR', 52000),
+(7, 'Sophia', 'IT', 72000);
+
+🔹 3. UPDATE – Modify Existing Data
+➤ Purpose:
+
+Used to update or modify existing records in a table.
+
+➤ Syntax:
+UPDATE table_name
+SET column1 = value1, column2 = value2, ...
+WHERE condition;
+
+
+⚠️ Important: Without a WHERE clause, all rows will be updated!
+
+➤ Examples:
+Example 1: Update one record
+UPDATE Employees
+SET Salary = 75000
+WHERE EmpName = 'Alice';
+
+Example 2: Update multiple columns
+UPDATE Employees
+SET Department = 'Operations', Salary = 62000
+WHERE EmpID = 3;
+
+🔹 4. DELETE – Remove Data
+➤ Purpose:
+
+Used to delete existing records from a table.
+
+➤ Syntax:
+DELETE FROM table_name
+WHERE condition;
+
+
+⚠️ Caution: Without WHERE, all rows will be deleted!
+
+➤ Examples:
+Example 1: Delete one record
+DELETE FROM Employees
+WHERE EmpID = 4;
+
+Example 2: Delete all records (keep table structure)
+DELETE FROM Employees;
+
+🔹 Summary Table
+Command	                 Purpose	                                              Example
+SELECT              	Retrieve data                                  	SELECT * FROM Employees;
+INSERT	              Add new data	                                  INSERT INTO Employees VALUES (1, 'John', 'HR', 50000);
+UPDATE	             Modify existing data                           	UPDATE Employees SET Salary = 70000 WHERE EmpID = 2;
+DELETE             	Remove data	                                      DELETE FROM Employees WHERE EmpID = 3;
+
+🔹 Difference Between DDL and DML
+Feature	DDL	DML
+Full Form	                                            Data Definition Language                                                   	Data Manipulation Language
+Affects                                             	Structure of database	                                                      Data inside tables
+Examples	                                            CREATE, ALTER, DROP, TRUNCATE                                             	SELECT, INSERT, UPDATE, DELETE
+Auto-commit	                                          Yes (saves automatically)	                                                  No (needs COMMIT to save changes)
+Rollback	                                            Not always possible	                                                        Possible before COMMIT
+
+🔹 Example of All DML Commands Together
+-- Insert a new record
+INSERT INTO Employees (EmpID, EmpName, Department, Salary)
+VALUES (8, 'Grace', 'Finance', 60000);
+
+-- Retrieve all employees
+SELECT * FROM Employees;
+
+-- Update Grace’s salary
+UPDATE Employees
+SET Salary = 65000
+WHERE EmpName = 'Grace';
+
+-- Delete Bob’s record
+DELETE FROM Employees
+WHERE EmpName = 'Bob';
+
+
+✅ In short:
+
+DML = Commands that work with the data itself —
+SELECT (read), INSERT (add), UPDATE (change), DELETE (remove).
