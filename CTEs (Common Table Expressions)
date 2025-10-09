@@ -1,0 +1,192 @@
+CTE (Common Table Expression) is a temporary result set that you can reference within a SELECT, INSERT, UPDATE, or DELETE statement.
+
+Think of it as a temporary named table created inside your query.
+
+It improves readability and modularity of complex queries.
+
+It exists only during the execution of the query.
+
+🔹 Benefits of Using CTEs
+
+Improves readability — break complex queries into parts.
+
+Avoids repeated code — define logic once and reference multiple times.
+
+Supports recursion — ideal for hierarchical or tree-structured data.
+
+Can be used with DML (INSERT, UPDATE, DELETE).
+
+Enhances maintainability — easier to modify parts of queries.
+
+🔹 Syntax of a CTE
+WITH cte_name (column1, column2, ...) AS (
+    -- SQL query that returns rows
+    SELECT ...
+    FROM ...
+    WHERE ...
+)
+-- Use the CTE in main query
+SELECT *
+FROM cte_name
+WHERE ...;
+
+🔹 Example Table: Employees
+EmpID	EmpName	Department	Salary	ManagerID
+1	John	HR	50000	NULL
+2	Alice	IT	70000	1
+3	Bob	IT	60000	1
+4	Eve	Finance	55000	NULL
+5	Charlie	IT	65000	2
+6	David	HR	52000	1
+🔹 1. Simple CTE Example
+
+Suppose we want to find IT employees with salary > 60000:
+
+WITH HighSalaryIT AS (
+    SELECT EmpID, EmpName, Salary
+    FROM Employees
+    WHERE Department = 'IT' AND Salary > 60000
+)
+SELECT *
+FROM HighSalaryIT;
+
+
+✅ Output:
+
+EmpID	EmpName	Salary
+2	Alice	70000
+5	Charlie	65000
+🔹 2. CTE with Aggregate Functions
+
+Suppose we want average salary per department and then filter departments with avg salary > 60000:
+
+WITH DeptAvg AS (
+    SELECT Department, AVG(Salary) AS AvgSalary
+    FROM Employees
+    GROUP BY Department
+)
+SELECT *
+FROM DeptAvg
+WHERE AvgSalary > 60000;
+
+
+✅ Output:
+
+Department	AvgSalary
+IT	65000
+🔹 3. CTE Referencing Another CTE (Chaining CTEs)
+
+You can define multiple CTEs in a single query:
+
+WITH DeptAvg AS (
+    SELECT Department, AVG(Salary) AS AvgSalary
+    FROM Employees
+    GROUP BY Department
+),
+HighSalaryDepts AS (
+    SELECT Department
+    FROM DeptAvg
+    WHERE AvgSalary > 60000
+)
+SELECT e.EmpName, e.Salary, e.Department
+FROM Employees e
+JOIN HighSalaryDepts h
+ON e.Department = h.Department;
+
+
+✅ Output:
+
+EmpName	Salary	Department
+Alice	70000	IT
+Bob	60000	IT
+Charlie	65000	IT
+🔹 4. Recursive CTEs
+
+Recursive CTEs are used for hierarchical or tree-structured data, e.g., organizational charts.
+
+Example: Find all employees under manager John (EmpID = 1)
+WITH EmployeeHierarchy AS (
+    -- Anchor member: start with John
+    SELECT EmpID, EmpName, ManagerID
+    FROM Employees
+    WHERE EmpID = 1
+    
+    UNION ALL
+    
+    -- Recursive member: get employees reporting to the previous level
+    SELECT e.EmpID, e.EmpName, e.ManagerID
+    FROM Employees e
+    INNER JOIN EmployeeHierarchy eh
+    ON e.ManagerID = eh.EmpID
+)
+SELECT *
+FROM EmployeeHierarchy;
+
+
+✅ Output:
+
+EmpID	EmpName	ManagerID
+1	John	NULL
+2	Alice	1
+3	Bob	1
+5	Charlie	2
+6	David	1
+
+Explanation:
+
+The anchor member selects John.
+
+The recursive member selects employees whose ManagerID matches previous results.
+
+The recursion continues until no more matches are found.
+
+🔹 5. CTE with DML (INSERT/UPDATE/DELETE)
+Example: Update salaries of IT employees by 10% using CTE
+WITH IT_Employees AS (
+    SELECT *
+    FROM Employees
+    WHERE Department = 'IT'
+)
+UPDATE Employees
+SET Salary = Salary * 1.1
+WHERE EmpID IN (SELECT EmpID FROM IT_Employees);
+
+
+✅ Output: All IT employee salaries increased by 10%.
+
+🔹 6. CTE vs Subquery
+
+CTE is often preferred over subqueries because:
+
+Easier to read for complex queries
+
+Reusable within the main query
+
+Supports recursion (subqueries cannot)
+
+🔹 7. Best Practices for CTEs
+
+Give meaningful names to your CTEs.
+
+Use column aliases inside CTEs for clarity.
+
+Limit recursion with OPTION (MAXRECURSION n) in SQL Server to avoid infinite loops.
+
+Avoid unnecessary CTEs for very simple queries — sometimes a subquery or JOIN is more efficient.
+
+Chain multiple CTEs for stepwise complex calculations.
+
+🔹 Summary Table of CTEs
+Feature	Description	Example
+Simple CTE	Temporary named result set	WITH CTE AS (SELECT * FROM Employees) SELECT * FROM CTE;
+Chained CTEs	Multiple CTEs in sequence	WITH CTE1 AS(...), CTE2 AS(...) SELECT ...
+Recursive CTE	Handle hierarchical data	WITH RecCTE AS (...) SELECT * FROM RecCTE;
+CTE + DML	Update/Insert/Delete using CTE	WITH CTE AS(...) UPDATE Employees SET ... WHERE EmpID IN (SELECT ...)
+
+✅ In short:
+
+CTEs make SQL more readable, modular, and maintainable.
+
+Recursive CTEs handle hierarchical structures elegantly.
+
+Can be combined with aggregates, joins, and DML for powerful queries.
