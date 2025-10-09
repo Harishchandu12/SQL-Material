@@ -1,0 +1,210 @@
+A subquery (also called an inner query or nested query) is a query within another SQL query.
+
+The outer query is called the main query.
+
+The subquery executes first and its result is used by the outer query.
+
+Subqueries can return:
+
+A single value (scalar)
+
+A single row
+
+Multiple rows
+
+Multiple columns
+
+🔹 Syntax of a Subquery
+SELECT column1, column2, ...
+FROM table_name
+WHERE column_name operator
+    (SELECT column_name
+     FROM table_name
+     WHERE condition);
+
+
+Subqueries can appear in:
+
+SELECT clause
+
+FROM clause
+
+WHERE clause
+
+HAVING clause
+
+🔹 Example Table: Employees
+EmpID	EmpName	Department	Salary	ManagerID
+1	John	HR	50000	NULL
+2	Alice	IT	70000	1
+3	Bob	IT	60000	1
+4	Eve	Finance	55000	NULL
+5	Charlie	IT	65000	2
+6	David	HR	52000	1
+🔹 Types of Subqueries
+1️⃣ Non-Correlated Subquery
+
+The subquery is independent of the outer query.
+
+Executes once and returns a result to the main query.
+
+➤ Example 1: Find employees with salary greater than average salary
+SELECT EmpName, Salary
+FROM Employees
+WHERE Salary > (SELECT AVG(Salary) FROM Employees);
+
+
+Explanation:
+
+Inner query: (SELECT AVG(Salary) FROM Employees) → calculates average salary.
+
+Outer query: selects employees with salary greater than that average.
+
+✅ Output:
+
+EmpName	Salary
+Alice	70000
+Charlie	65000
+
+➤ Example 2: Use subquery in FROM clause
+SELECT Department, MAX(Salary) AS MaxSalary
+FROM (SELECT * FROM Employees) AS Sub
+GROUP BY Department;
+
+
+Subquery creates a temporary table Sub for outer query to aggregate.
+
+2️⃣ Correlated Subquery
+
+The subquery depends on the outer query for its values.
+
+Executes once for every row of the outer query.
+
+Useful when comparing each row to a related subset.
+
+➤ Example: Find employees who earn more than the average salary in their department
+SELECT EmpName, Department, Salary
+FROM Employees e1
+WHERE Salary > (
+    SELECT AVG(Salary)
+    FROM Employees e2
+    WHERE e2.Department = e1.Department
+);
+
+
+Explanation:
+
+e2.Department = e1.Department → inner query depends on outer query.
+
+Evaluates per row of outer query.
+
+✅ Output:
+
+EmpName	Department	Salary
+Alice	IT	70000
+Charlie	IT	65000
+
+🔹 Comparison: Correlated vs Non-Correlated
+Feature	Non-Correlated Subquery	Correlated Subquery
+Dependency	Independent of outer query	Depends on outer query
+Execution	Executes once	Executes for each row of outer query
+Speed	Usually faster	Can be slower for large tables
+Example	WHERE Salary > (SELECT AVG(Salary) FROM Employees)	WHERE Salary > (SELECT AVG(Salary) FROM Employees e2 WHERE e2.Dept = e1.Dept)
+
+🔹 Subquery Operators
+
+Comparison Operators: =, >, <, >=, <=, <>
+
+WHERE Salary > (SELECT AVG(Salary) FROM Employees);
+
+
+IN / NOT IN: Check if a value exists in a list
+
+SELECT EmpName
+FROM Employees
+WHERE Department IN (SELECT Department FROM Employees WHERE Salary > 60000);
+
+
+EXISTS / NOT EXISTS: Check if subquery returns rows
+
+SELECT EmpName
+FROM Employees e1
+WHERE EXISTS (
+    SELECT 1
+    FROM Employees e2
+    WHERE e2.ManagerID = e1.EmpID
+);
+
+
+ANY / ALL: Compare to single or multiple values
+
+SELECT EmpName
+FROM Employees
+WHERE Salary > ALL (SELECT Salary FROM Employees WHERE Department='HR');
+
+🔹 Subquery in SELECT Clause
+
+Subquery can be used to compute a value for each row:
+
+SELECT EmpName,
+       (SELECT AVG(Salary) FROM Employees WHERE Department = e.Department) AS DeptAvgSalary
+FROM Employees e;
+
+
+Output:
+
+EmpName	DeptAvgSalary
+John	51000
+Alice	65000
+Bob	65000
+Charlie	65000
+Eve	55000
+David	51000
+
+🔹 Subquery in HAVING Clause
+SELECT Department, COUNT(*) AS NumEmployees
+FROM Employees
+GROUP BY Department
+HAVING COUNT(*) > (SELECT AVG(DeptCount) FROM (SELECT COUNT(*) AS DeptCount FROM Employees GROUP BY Department) AS Sub);
+
+
+Filters departments with more employees than average department size.
+
+🔹 Key Points About Subqueries
+
+Can return single value, single row, multiple rows, or multiple columns.
+
+Can be used in SELECT, FROM, WHERE, HAVING clauses.
+
+Correlated subqueries depend on outer query → slower for large datasets.
+
+Non-correlated subqueries execute once → faster and simpler.
+
+Can be nested multiple levels for complex queries.
+
+🔹 Best Practices
+
+Prefer JOINs over correlated subqueries for performance if possible.
+
+Use CTEs to simplify complex subqueries.
+
+Ensure subqueries that return single values use operators like = or aggregation (MAX, MIN).
+
+Always alias subqueries used in FROM clause.
+
+🔹 Summary Table: Correlated vs Non-Correlated
+Feature	Non-Correlated	Correlated
+Dependency	Independent	Depends on outer query
+Execution	Once	Per row of outer query
+Use Case	Compare to overall aggregate	Compare to row-specific aggregate
+Example	Salary > (SELECT AVG(Salary) FROM Employees)	Salary > (SELECT AVG(Salary) FROM Employees e2 WHERE e2.Dept = e1.Dept)
+
+✅ In short:
+
+Subquery: SQL query inside another query.
+
+Non-correlated: Executes once, independent.
+
+Correlated: Executes per outer row, depends on outer query.
+
+Use with: SELECT, FROM, WHERE, HAVING.
