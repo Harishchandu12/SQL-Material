@@ -1,0 +1,236 @@
+📘 Common SQL Anti-Patterns
+🔹 1. Introduction
+
+SQL Anti-Patterns are query or design practices that seem convenient but cause performance issues, maintainability problems, or unexpected results.
+
+Often tolerated in early development
+
+Can degrade performance in large datasets
+
+Critical for experienced IT professionals to identify and fix
+
+Key areas affected:
+
+Query performance
+
+Index utilization
+
+Blocking and locking
+
+Resource usage (CPU, memory, I/O)
+
+🔹 2. SELECT * (Wildcard Select)
+🧩 Problem
+
+Retrieves all columns instead of required columns.
+
+Increases I/O, memory usage, and network bandwidth.
+
+Prevents covering indexes from being used efficiently.
+
+🧩 Example
+-- Anti-pattern
+SELECT * FROM Employees WHERE DepartmentID = 10;
+
+-- Better
+SELECT EmployeeID, FirstName, LastName FROM Employees WHERE DepartmentID = 10;
+
+
+Impact:
+
+If table has 50 columns, extra columns increase data transfer.
+
+Index may not cover all columns, leading to key lookups.
+
+🔹 3. Functions in WHERE Clause
+🧩 Problem
+
+Using functions on columns prevents index seeks → forces table or index scan.
+
+Common functions: CONVERT, CAST, UPPER, DATEPART, ISNULL.
+
+🧩 Example
+-- Anti-pattern: function on column
+SELECT * FROM Employees WHERE UPPER(LastName) = 'SMITH';
+
+-- Better: function on parameter
+SELECT * FROM Employees WHERE LastName = @LastName;
+
+
+Impact:
+
+Index on LastName cannot be used → full scan
+
+High CPU for large tables
+
+Tip: Avoid column-level functions in filters.
+
+🔹 4. Implicit Conversions
+🧩 Problem
+
+Mismatched data types cause implicit conversions → prevents index usage.
+
+-- Anti-pattern: nvarchar column compared with varchar parameter
+SELECT * FROM Employees WHERE EmployeeCode = 'E123';
+
+-- If EmployeeCode is NVARCHAR, literal is treated as VARCHAR → implicit conversion
+
+
+Better:
+
+DECLARE @Code NVARCHAR(10) = 'E123';
+SELECT * FROM Employees WHERE EmployeeCode = @Code;
+
+
+Impact: Index seek may not be used → scan occurs.
+
+🔹 5. OR Conditions Preventing Index Usage
+🧩 Problem
+
+Multiple OR conditions can prevent SQL Server from using indexes efficiently.
+
+-- Anti-pattern
+SELECT * FROM Orders WHERE CustomerID = 1 OR CustomerID = 2;
+
+-- Better: use IN
+SELECT * FROM Orders WHERE CustomerID IN (1, 2);
+
+
+Impact: OR can trigger full scan, IN can utilize index seek.
+
+🔹 6. TOP without ORDER BY
+🧩 Problem
+
+TOP without ORDER BY returns arbitrary rows.
+
+Causes inconsistent results and potential data anomalies.
+
+-- Anti-pattern
+SELECT TOP 10 * FROM Orders;
+
+-- Better
+SELECT TOP 10 * FROM Orders ORDER BY OrderDate DESC;
+
+
+Impact: Query results unpredictable → affects reporting and logic.
+
+🔹 7. SELECT in Loops (RBAR – Row By Agonizing Row)
+🧩 Problem
+
+Iterating with cursors or loops and executing SELECT/UPDATE per row → poor performance.
+
+-- Anti-pattern
+DECLARE @id INT
+DECLARE cur CURSOR FOR SELECT EmployeeID FROM Employees
+OPEN cur
+FETCH NEXT FROM cur INTO @id
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    UPDATE Employees SET Salary = Salary * 1.1 WHERE EmployeeID = @id
+    FETCH NEXT FROM cur INTO @id
+END
+CLOSE cur
+DEALLOCATE cur
+
+-- Better: set-based operation
+UPDATE Employees SET Salary = Salary * 1.1 WHERE EmployeeID IN (SELECT EmployeeID FROM Employees);
+
+
+Impact: Cursors → row-by-row operations → high CPU and slow execution on large datasets.
+
+🔹 8. NOT IN / NOT LIKE on Large Datasets
+🧩 Problem
+
+NOT IN or NOT LIKE causes full scans and can produce unexpected NULL results.
+
+-- Anti-pattern
+SELECT * FROM Orders WHERE CustomerID NOT IN (SELECT CustomerID FROM VIPCustomers);
+
+-- Better
+SELECT * FROM Orders o
+WHERE NOT EXISTS (SELECT 1 FROM VIPCustomers v WHERE v.CustomerID = o.CustomerID);
+
+
+Impact: NOT EXISTS → can use indexes efficiently.
+
+🔹 9. Overusing DISTINCT
+🧩 Problem
+
+Used to hide duplicate results caused by joins instead of fixing joins properly.
+
+DISTINCT incurs sorting overhead.
+
+-- Anti-pattern
+SELECT DISTINCT e.EmployeeID, e.FirstName
+FROM Employees e
+JOIN Departments d ON e.DepartmentID = d.DepartmentID
+WHERE d.Location = 'NY';
+
+-- Better: fix join or aggregation logic
+SELECT e.EmployeeID, e.FirstName
+FROM Employees e
+WHERE e.DepartmentID IN (SELECT DepartmentID FROM Departments WHERE Location='NY');
+
+🔹 10. Using Cursors Instead of Set-Based Operations
+
+Cursors process one row at a time → high CPU, slow performance.
+
+Set-based operations are faster, more scalable.
+
+-- Anti-pattern: Cursor
+DECLARE cur CURSOR FOR SELECT EmployeeID FROM Employees;
+-- row-by-row updates
+
+-- Better: set-based
+UPDATE Employees SET Salary = Salary * 1.1 WHERE DepartmentID = 10;
+
+🔹 11. Excessive Nested Views
+
+Views within views → complex query plans → difficult to optimize.
+
+Flatten views or use inline table-valued functions for performance.
+
+🔹 12. Anti-Patterns Summary Table
+Anti-Pattern	Problem	Impact	Better Approach
+SELECT *	Retrieves unnecessary columns	High I/O, key lookups	Select required columns
+Functions in WHERE	Prevents index usage	Table scan, high CPU	Apply function to parameter, not column
+Implicit Conversions	Data type mismatch	Index ignored, scan occurs	Match data types
+OR conditions	Prevents index seek	Scan, slow	Use IN, UNION ALL
+TOP without ORDER BY	Unpredictable results	Inconsistent data	Always use ORDER BY
+Row-by-row processing	Slow for large sets	High CPU, slow	Use set-based operations
+NOT IN	Full scan, NULL issues	Slow	Use NOT EXISTS
+DISTINCT overuse	Hides bad joins	Sorting overhead	Fix joins or aggregations
+Excessive views	Complex plans	Hard to optimize	Flatten views or use inline functions
+🔹 13. Best Practices
+
+Always select only required columns → supports covering indexes.
+
+Avoid functions on columns in WHERE / JOIN → enable index seeks.
+
+Use set-based operations instead of cursors.
+
+Match parameter types with column types → avoid implicit conversions.
+
+Use IN / EXISTS instead of OR / NOT IN.
+
+ORDER BY with TOP → consistent results.
+
+Monitor query plans → identify hidden scans or key lookups.
+
+Review views and nested queries → simplify execution plans.
+
+🔹 14. Interview / Practical Notes
+Question	Answer
+Why is SELECT * bad?	Retrieves unnecessary columns → increases I/O, prevents covering index
+Functions in WHERE clause issue?	Prevents index usage → table scan → slow queries
+Row-by-row vs set-based?	Row-by-row (RBAR) slow → set-based operations faster
+Alternative to NOT IN?	Use NOT EXISTS or LEFT JOIN with IS NULL
+How to avoid implicit conversions?	Match data types of parameters with column types
+
+✅ In Summary
+
+SQL anti-patterns degrade performance, increase resource usage, and complicate maintenance.
+
+Avoid *SELECT , functions in WHERE, RBAR, OR on large datasets, and excessive DISTINCT.
+
+Always follow set-based, index-friendly, and type-consistent practices for production-ready queries.
