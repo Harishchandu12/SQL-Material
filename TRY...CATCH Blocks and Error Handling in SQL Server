@@ -1,0 +1,343 @@
+📘 TRY...CATCH Blocks and Error Handling in SQL Server
+🔹 1. Introduction
+
+Error handling is a critical part of database programming.
+It ensures that your application or stored procedure behaves predictably even when unexpected errors occur.
+
+SQL Server provides structured error handling using the TRY...CATCH construct, similar to exception handling in programming languages like C#, Java, or Python.
+
+🔹 2. What is a TRY...CATCH Block?
+🧩 Definition
+
+A TRY...CATCH block allows you to trap and handle runtime errors in T-SQL statements gracefully, instead of letting them terminate the batch or transaction.
+
+🧩 Basic Syntax
+BEGIN TRY
+    -- Code that may raise an error
+END TRY
+BEGIN CATCH
+    -- Code to handle the error
+END CATCH
+
+
+If an error occurs inside the BEGIN TRY block:
+
+Control immediately jumps to the BEGIN CATCH block.
+
+The error is not displayed to the client automatically.
+
+You can use system functions to capture error details.
+
+✅ Key Points
+
+Syntax works only in SQL Server 2005+.
+
+Does not handle compile-time errors (only runtime).
+
+The error handling functions (ERROR_NUMBER(), ERROR_MESSAGE(), etc.) are valid only inside CATCH.
+
+A TRY...CATCH block can be used inside transactions, stored procedures, and triggers.
+
+🔹 3. Example: Basic TRY...CATCH
+BEGIN TRY
+    -- Intentionally cause a divide by zero error
+    DECLARE @x INT = 10, @y INT = 0;
+    SELECT @x / @y AS Result;
+END TRY
+BEGIN CATCH
+    PRINT 'An error occurred.';
+    PRINT ERROR_MESSAGE();
+END CATCH;
+
+
+Output:
+
+An error occurred.
+Divide by zero error encountered.
+
+
+Explanation:
+
+SQL Server jumps to CATCH when divide-by-zero occurs.
+
+The ERROR_MESSAGE() function retrieves the exact error text.
+
+🔹 4. System Error Functions
+
+Inside a CATCH block, SQL Server provides special functions to capture detailed error information.
+
+Function	Description
+ERROR_NUMBER()	Returns the error number.
+ERROR_SEVERITY()	Returns the severity level of the error.
+ERROR_STATE()	Returns the state number (used internally).
+ERROR_PROCEDURE()	Returns the name of the stored procedure or trigger where the error occurred.
+ERROR_LINE()	Returns the line number that caused the error.
+ERROR_MESSAGE()	Returns the complete text of the error message.
+🧩 Example: Using Error Functions
+BEGIN TRY
+    UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = 100;
+    UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = 9999; -- Invalid account
+END TRY
+BEGIN CATCH
+    SELECT
+        ERROR_NUMBER() AS ErrorNumber,
+        ERROR_SEVERITY() AS Severity,
+        ERROR_STATE() AS ErrorState,
+        ERROR_PROCEDURE() AS ProcedureName,
+        ERROR_LINE() AS ErrorLine,
+        ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+
+
+Output Example:
+
+ErrorNumber	Severity	State	ProcedureName	ErrorLine	ErrorMessage
+547	16	1	NULL	3	The UPDATE statement conflicted with the FOREIGN KEY constraint.
+🔹 5. TRY...CATCH with Transactions
+
+Error handling is often combined with transaction control to ensure data consistency.
+
+🧩 Example: Transaction with Error Handling
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    UPDATE Accounts SET Balance = Balance - 500 WHERE AccountID = 1;
+    UPDATE Accounts SET Balance = Balance + 500 WHERE AccountID = 9999; -- invalid
+
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION;
+
+    PRINT 'Transaction rolled back due to error.';
+    PRINT ERROR_MESSAGE();
+END CATCH;
+
+
+Explanation:
+
+Both statements are part of a single transaction.
+
+If the second update fails, control moves to CATCH and rolls back.
+
+Prevents partial updates — ensures atomicity.
+
+🔹 6. Nested TRY...CATCH
+
+SQL Server allows nested TRY...CATCH blocks for complex procedures.
+
+🧩 Example: Nested Handling
+BEGIN TRY
+    PRINT 'Outer TRY started';
+    BEGIN TRY
+        PRINT 'Inner TRY started';
+        RAISERROR('Inner error occurred.', 16, 1);
+    END TRY
+    BEGIN CATCH
+        PRINT 'Inner CATCH: ' + ERROR_MESSAGE();
+    END CATCH;
+END TRY
+BEGIN CATCH
+    PRINT 'Outer CATCH: ' + ERROR_MESSAGE();
+END CATCH;
+
+
+Output:
+
+Outer TRY started
+Inner TRY started
+Inner CATCH: Inner error occurred.
+
+
+Explanation:
+
+Inner error is caught by inner CATCH.
+
+Outer CATCH executes only if error is unhandled by inner block.
+
+🔹 7. RAISERROR and THROW Statements
+🧩 RAISERROR (Legacy)
+
+Used to manually raise an error in SQL Server (similar to throwing exceptions).
+
+RAISERROR('Custom error occurred.', 16, 1);
+
+
+Syntax: RAISERROR (message, severity, state)
+
+Severity levels:
+
+0–10: Informational
+
+11–16: User errors
+
+17–19: Software or resource errors
+
+20–25: Fatal (connection terminated)
+
+🧩 THROW (Modern Alternative)
+
+THROW (introduced in SQL Server 2012) rethrows the current error or raises a new one.
+
+Syntax 1: Rethrow existing error
+
+BEGIN CATCH
+    THROW;
+END CATCH;
+
+
+Syntax 2: Custom error
+
+THROW 50001, 'Invalid operation attempted.', 1;
+
+
+Advantages of THROW over RAISERROR:
+
+Simpler syntax.
+
+Always preserves original error info.
+
+Compatible with TRY...CATCH.
+
+Future-proof (RAISERROR may be deprecated).
+
+🔹 8. Combining TRY...CATCH and THROW
+🧩 Example: Rethrowing Error After Logging
+BEGIN TRY
+    BEGIN TRANSACTION;
+    UPDATE Products SET Price = Price / 0; -- deliberate error
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION;
+
+    INSERT INTO ErrorLog (ErrorNumber, ErrorMessage, ErrorDate)
+    VALUES (ERROR_NUMBER(), ERROR_MESSAGE(), GETDATE());
+
+    -- Re-throw the error to propagate it
+    THROW;
+END CATCH;
+
+
+Explanation:
+
+Logs the error in ErrorLog table.
+
+Rolls back the transaction.
+
+Rethrows the same error to the caller or application.
+
+🔹 9. Common Error Handling Patterns
+🧩 Pattern 1 – Inline Error Check (Before TRY...CATCH)
+
+Before SQL Server 2005:
+
+UPDATE Employees SET Salary = Salary + 1000 WHERE EmpID = 10;
+IF @@ERROR <> 0
+BEGIN
+    PRINT 'Error occurred.';
+    ROLLBACK TRANSACTION;
+END
+
+🧩 Pattern 2 – Modern TRY...CATCH with Logging
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    DELETE FROM Orders WHERE OrderDate < '2022-01-01';
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION;
+
+    INSERT INTO ErrorLog VALUES (
+        ERROR_NUMBER(),
+        ERROR_MESSAGE(),
+        GETDATE()
+    );
+
+    THROW;
+END CATCH;
+
+🔹 10. Error Handling Best Practices
+Area	Best Practice	Explanation
+Use TRY...CATCH	Always use structured error handling	Prevents transaction corruption and unhandled errors
+Use THROW instead of RAISERROR	Prefer THROW for rethrowing errors	Preserves full error context
+Combine with Transactions	Wrap DML operations in TRY...CATCH + TRANSACTION	Maintains atomicity and consistency
+Always ROLLBACK on Error	Prevent partial commits	Use conditional rollback logic
+Centralized Logging	Log error info using ERROR_MESSAGE() and ERROR_NUMBER()	Useful for troubleshooting
+Avoid Silent Failures	Don’t suppress errors without proper handling	Leads to hidden data inconsistencies
+Check for Open Transactions	Use @@TRANCOUNT before commit/rollback	Avoids nested transaction issues
+Test Error Paths	Simulate errors (divide by zero, FK violations)	Ensures handlers are working correctly
+🔹 11. Checking Transaction Count
+
+When using TRY...CATCH with transactions, always check if a transaction is still open before rolling back:
+
+BEGIN CATCH
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+
+    PRINT ERROR_MESSAGE();
+END CATCH;
+
+🔹 12. Real-World Example: Safe Database Operation
+CREATE PROCEDURE usp_UpdateOrderStatus
+    @OrderID INT,
+    @NewStatus NVARCHAR(20)
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        UPDATE Orders
+        SET Status = @NewStatus, UpdatedOn = GETDATE()
+        WHERE OrderID = @OrderID;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        INSERT INTO ErrorLog (ErrorNumber, ErrorMessage, ErrorDate)
+        VALUES (ERROR_NUMBER(), ERROR_MESSAGE(), GETDATE());
+
+        THROW;
+    END CATCH;
+END;
+
+
+Explanation:
+
+Wraps logic inside TRY...CATCH.
+
+Automatically rolls back if any error occurs.
+
+Logs detailed error info for debugging.
+
+Safe, production-ready design.
+
+🔹 13. Comparison: RAISERROR vs THROW
+Feature	RAISERROR	THROW
+Introduced	SQL Server 2000	SQL Server 2012
+Syntax	Verbose	Simpler
+Preserve Original Error	❌ No	✅ Yes
+Re-throw Existing Error	❌ No	✅ Yes (THROW;)
+Future Recommendation	Deprecated	Preferred
+Example	RAISERROR('msg',16,1);	THROW 50001,'msg',1;
+🔹 14. Quick Summary Table
+Concept	Description	Example
+TRY...CATCH	Structured block for handling runtime errors	BEGIN TRY ... END TRY BEGIN CATCH ... END CATCH
+ERROR Functions	Retrieve details about the error	ERROR_MESSAGE(), ERROR_NUMBER()
+RAISERROR	Raise a user-defined error	RAISERROR('Msg',16,1)
+THROW	Modern error raising method	THROW 50001, 'Msg', 1
+Transaction Safety	Combine TRY...CATCH with COMMIT/ROLLBACK	IF @@TRANCOUNT > 0 ROLLBACK;
+
+✅ In Summary:
+
+TRY...CATCH enables robust error handling and transaction safety.
+
+Use THROW (not RAISERROR) for modern and clean exception management.
+
+Always combine TRY...CATCH with transactions and logging for production-grade SQL code.
+
+Follow consistent patterns to ensure reliability, maintainability, and auditability.
