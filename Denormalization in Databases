@@ -1,0 +1,153 @@
+📘 Denormalization in Databases
+🔹 1. Introduction
+
+Denormalization is the process of intentionally introducing redundancy into a normalized database to improve read/query performance.
+
+Opposite of normalization, which reduces redundancy for data integrity.
+
+Common in OLAP, reporting, and read-heavy systems.
+
+Trade-off between performance and data integrity/maintenance.
+
+🔹 2. Why Denormalize?
+
+Improve Query Performance
+
+Fewer joins required for complex queries
+
+Reduce Query Complexity
+
+Simplifies reporting queries
+
+Enhance Read Efficiency
+
+Useful for read-heavy workloads
+
+Optimize Aggregate Operations
+
+Precomputed totals or summaries stored in tables
+
+Example Use Case: Reporting dashboards needing employee + department + location info frequently.
+
+🔹 3. Trade-offs of Denormalization
+Aspect	Benefit	Trade-off / Risk
+Performance	Faster SELECT queries	Increased storage, slower writes
+Data Redundancy	Can avoid complex joins	Data duplication → update anomalies
+Maintenance	Simplifies querying	More effort to maintain consistency
+Insert/Update/Delete	Can optimize batch reads	Updates must be applied to multiple rows → risk of inconsistency
+Indexing	Can create fewer indexes	Larger table size → higher I/O
+🔹 4. Common Denormalization Techniques
+
+Adding Redundant Columns
+
+Example: Store DepartmentName in Employee table instead of joining Department table.
+
+-- Normalized
+Employee(EmployeeID, Name, DeptID)
+Department(DeptID, DeptName)
+
+-- Denormalized
+Employee(EmployeeID, Name, DeptID, DeptName)
+
+
+Benefit: Queries fetching employee + department avoid JOIN
+
+Trade-off: Updating DeptName requires updating multiple employee records
+
+Precomputed Aggregates
+
+Store total sales per customer instead of calculating on the fly.
+
+-- Precomputed aggregate table
+CustomerSales(CustomerID, TotalSales)
+
+-- Instead of calculating:
+SELECT CustomerID, SUM(SalesAmount)
+FROM Orders
+GROUP BY CustomerID;
+
+
+Benefit: Faster report generation
+
+Trade-off: Must update CustomerSales on every insert/update/delete in Orders
+
+Duplicating Tables / Materialized Views
+
+Store joined or summarized data as a separate table for reporting.
+
+-- Materialized view / summary table
+CREATE TABLE EmployeeDeptSummary AS
+SELECT e.EmployeeID, e.Name, d.DeptName
+FROM Employee e
+JOIN Department d ON e.DeptID = d.DeptID;
+
+
+Benefit: Read queries faster
+
+Trade-off: Requires periodic refresh, extra storage
+
+Storing Calculated Fields
+
+Example: Age stored in Employee table instead of calculating from DOB.
+
+Employee(EmployeeID, Name, DOB, Age)
+
+
+Benefit: Faster read, no runtime calculation
+
+Trade-off: Must update Age periodically → risk of stale data
+
+🔹 5. Examples of Denormalization Trade-offs
+Scenario	Normalized Approach	Denormalized Approach	Trade-off
+Fetch employee + dept name	JOIN Employee + Department	Store DeptName in Employee table	Faster SELECT, slower UPDATE if department changes
+Reporting total sales	SUM() on Orders	Store TotalSales in Customer table	Faster reports, extra maintenance on inserts/updates
+Age calculation	DATEDIFF on DOB	Store Age column	Fast retrieval, risk of outdated Age value
+🔹 6. Best Practices for Denormalization
+
+Only denormalize when performance issues exist → avoid premature denormalization
+
+Document redundant fields → ensure maintenance clarity
+
+Use triggers or scheduled jobs to keep redundant data in sync
+
+Combine with indexing → optimize query performance
+
+Monitor write-heavy operations → ensure updates don’t degrade performance
+
+Evaluate read/write trade-offs → denormalization is usually beneficial in read-heavy systems
+
+🔹 7. When to Consider Denormalization
+
+OLAP or reporting databases where SELECT dominates
+
+Applications with frequent complex joins on large tables
+
+Precomputing aggregates to reduce runtime calculations
+
+Multi-tenant dashboards requiring fast lookups across multiple tables
+
+🔹 8. Normalization vs Denormalization Table
+Aspect	Normalization	Denormalization
+Purpose	Reduce redundancy, ensure integrity	Improve read/query performance
+Storage	Minimal	Higher due to redundancy
+Updates	Simple	Complex, must update multiple locations
+Read Performance	May require joins	Faster, fewer joins
+Maintenance	Easier	Harder, risk of inconsistencies
+Use Case	OLTP systems	OLAP / reporting systems
+🔹 9. Interview / Practical Notes
+Question	Answer
+What is denormalization?	Introducing redundancy to improve query performance
+When to denormalize?	Read-heavy systems, reporting, dashboards, precomputed aggregates
+Main trade-offs?	Faster reads vs increased storage, maintenance, and risk of update anomalies
+How to maintain consistency?	Use triggers, scheduled updates, or application logic
+Normalization vs Denormalization?	Normalization → reduces redundancy, easier updates; Denormalization → improves read performance, increases redundancy
+
+✅ In Summary
+
+Denormalization improves query performance by introducing redundancy.
+
+Trade-offs: slower writes, extra maintenance, and potential update anomalies.
+
+Use selectively in read-heavy applications like reporting, OLAP, dashboards, or analytics.
+
+Maintain synchronization using triggers, scheduled jobs, or ETL processes.
