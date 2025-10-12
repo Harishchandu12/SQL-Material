@@ -1,0 +1,241 @@
+📘 Covering Index & Filtered Index in SQL Server
+🔹 1. Introduction: Index Optimization
+
+Indexes are used to improve query performance in relational databases.
+Advanced indexing techniques like Covering Index and Filtered Index help reduce:
+
+Key lookups
+
+I/O operations
+
+Query execution time
+
+These are critical for high-performance SQL applications, especially in large tables.
+
+🔹 2. Covering Index
+🧩 Definition
+
+A Covering Index is a non-clustered index that contains all columns required by a query, so the SQL Server engine does not need to access the base table (avoiding key lookups).
+
+Key Idea:
+
+The index “covers” the query.
+
+Includes key columns and optional included columns.
+
+🧩 Syntax
+CREATE NONCLUSTERED INDEX index_name
+ON table_name (key_column1, key_column2)
+INCLUDE (column3, column4, ...);
+
+
+Key columns → Used for searching, sorting, or joining
+
+Included columns → Extra columns required by SELECT but not part of search key
+
+🧩 Example 1 – Covering Index
+CREATE NONCLUSTERED INDEX IX_Employees_LastName
+ON Employees(LastName)
+INCLUDE (FirstName, Salary);
+
+
+Query:
+
+SELECT FirstName, Salary
+FROM Employees
+WHERE LastName = 'Smith';
+
+
+Explanation:
+
+All required columns (FirstName, Salary, LastName) exist in the index.
+
+SQL Server does not access the base table → improves performance.
+
+Eliminates key lookups.
+
+🧩 Example 2 – Covering Index for JOIN
+CREATE NONCLUSTERED INDEX IX_Orders_Customer
+ON Orders(CustomerID)
+INCLUDE (OrderDate, TotalAmount);
+
+
+Query:
+
+SELECT CustomerID, OrderDate, TotalAmount
+FROM Orders
+WHERE CustomerID = 101;
+
+
+Fully covered query → uses only index.
+
+No additional table read is required.
+
+✅ Covering Index Best Practices
+
+Include only columns used in SELECT or WHERE clauses.
+
+Avoid including too many columns → increases index size.
+
+Best for frequently run queries that select a subset of columns.
+
+Often used with non-clustered indexes to reduce key lookups.
+
+🔹 3. Filtered Index
+🧩 Definition
+
+A Filtered Index is a non-clustered index created with a WHERE clause to index only a subset of rows in a table.
+
+Key Idea:
+
+Reduces index size and maintenance overhead.
+
+Improves performance for queries targeting specific row patterns.
+
+🧩 Syntax
+CREATE NONCLUSTERED INDEX index_name
+ON table_name(column1)
+WHERE <filter_condition>;
+
+
+<filter_condition> → Predicate used to select rows for indexing
+
+Works best for sparse columns or frequent query filters
+
+🧩 Example 1 – Filtered Index for Active Customers
+CREATE NONCLUSTERED INDEX IX_Customers_Active
+ON Customers(LastName)
+WHERE IsActive = 1;
+
+
+Query:
+
+SELECT LastName
+FROM Customers
+WHERE IsActive = 1 AND LastName = 'Smith';
+
+
+Explanation:
+
+Index contains only active customers (IsActive = 1).
+
+Smaller index → faster query execution.
+
+Non-active customers are ignored by index → reduced storage.
+
+🧩 Example 2 – Filtered Index for Sparse Column
+CREATE NONCLUSTERED INDEX IX_Orders_Shipped
+ON Orders(ShippedDate)
+WHERE ShippedDate IS NOT NULL;
+
+
+Query:
+
+SELECT ShippedDate, OrderID
+FROM Orders
+WHERE ShippedDate IS NOT NULL;
+
+
+Only rows with shipped dates are indexed.
+
+Query uses filtered index → faster than scanning the full table.
+
+✅ Filtered Index Best Practices
+
+Ideal for sparse columns or frequently queried subsets.
+
+Reduces storage and maintenance cost.
+
+Combine with covering index if query selects extra columns.
+
+Ensure filter predicate matches query WHERE clause → index is used.
+
+Avoid using functions or calculations in filter predicate → prevents index usage.
+
+🔹 4. Covering Index vs Filtered Index
+Feature	Covering Index	Filtered Index
+Purpose	Reduce key lookups by including all required columns	Reduce index size by indexing only a subset of rows
+Structure	Non-clustered index with INCLUDE columns	Non-clustered index with WHERE clause
+Storage	Larger if many included columns	Smaller, only subset of table rows
+Use Case	Queries selecting many columns but filtered by key columns	Queries filtering specific subset (e.g., active, recent, NULL/non-NULL)
+Performance	Eliminates lookup to base table	Smaller index → faster scans
+Example	INCLUDE (FirstName, Salary)	WHERE IsActive = 1
+🔹 5. Combining Covering & Filtered Index
+
+You can combine INCLUDE columns and filter conditions for optimal performance:
+
+CREATE NONCLUSTERED INDEX IX_Employees_Active
+ON Employees(LastName)
+INCLUDE (FirstName, Salary)
+WHERE IsActive = 1;
+
+
+Covers query columns (FirstName, Salary)
+
+Only indexes active employees → reduces size and improves performance
+
+🔹 6. Performance Considerations
+
+Covering Index
+
+Speeds up queries with multiple SELECT columns.
+
+Increases write overhead (INSERT/UPDATE/DELETE) because index must be updated.
+
+Filtered Index
+
+Reduces index size → faster searches on specific rows.
+
+Must match query filter exactly for the index to be used.
+
+Maintenance cost is lower than a full index.
+
+🔹 7. Practical Examples in Real-World Scenarios
+Scenario 1 – Customer Queries
+
+Table: Customers(LastName, FirstName, Email, IsActive)
+
+Requirement: Frequently query active customers’ last names and emails
+
+Solution:
+
+CREATE NONCLUSTERED INDEX IX_Customers_ActiveCovering
+ON Customers(LastName)
+INCLUDE (Email)
+WHERE IsActive = 1;
+
+Scenario 2 – Orders Table
+
+Table: Orders(OrderID, CustomerID, ShippedDate, TotalAmount)
+
+Requirement: Frequently query only shipped orders
+
+Solution:
+
+CREATE NONCLUSTERED INDEX IX_Orders_ShippedDate
+ON Orders(ShippedDate)
+WHERE ShippedDate IS NOT NULL;
+
+🔹 8. Key Points for Interview / Production
+Topic	Note
+Covering Index	Improves query performance by including all selected columns
+Filtered Index	Improves query performance by indexing a subset of rows
+INCLUDE keyword	Required for covering additional columns
+WHERE clause	Required for filtered index
+Use case	Covering: avoids key lookup; Filtered: reduces index size for specific queries
+Combining	Both can be used together for best performance
+🔹 9. Quick Summary Table
+Index Type	Purpose	Key Feature	Example
+Covering Index	Avoid key lookup	INCLUDE columns to cover query	INCLUDE (FirstName, Salary)
+Filtered Index	Reduce index size	WHERE condition to index subset	WHERE IsActive = 1
+Combined	Optimal performance	INCLUDE + WHERE	INCLUDE (FirstName) WHERE IsActive = 1
+
+✅ In Summary
+
+Covering Index → Focuses on columns, eliminates base table lookup.
+
+Filtered Index → Focuses on rows, reduces index size.
+
+Combining both gives maximum query performance with minimal storage.
+
+Critical for large tables, frequent searches, and performance tuning.
