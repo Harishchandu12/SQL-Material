@@ -1,0 +1,281 @@
+📘 Temporary Tables vs Table Variables
+
+🔹 1. Definition Overview
+
+In SQL Server and similar RDBMSs, both Temporary Tables and Table Variables are used to store intermediate result sets temporarily during query or procedure execution.
+
+They help:
+
+Simplify complex queries.
+
+Hold temporary data for transformations or reporting.
+
+Improve performance by avoiding repeated calculations.
+
+🔹 2. What is a Temporary Table?
+
+A Temporary Table is a table created in the tempdb database that behaves like a normal table but exists only for the duration of a session or transaction.
+
+There are two types:
+
+Local Temporary Table (#table)
+
+Global Temporary Table (##table)
+
+🧩 A. Local Temporary Table
+
+Syntax:
+
+CREATE TABLE #TempEmployee (
+    EmpID INT,
+    EmpName NVARCHAR(50),
+    DeptID INT
+);
+
+
+Usage:
+
+INSERT INTO #TempEmployee VALUES (1, 'John Doe', 3);
+SELECT * FROM #TempEmployee;
+
+
+Characteristics:
+
+Visible only to the session that created it.
+
+Automatically deleted when the session ends or connection closes.
+
+🧩 B. Global Temporary Table
+
+Syntax:
+
+CREATE TABLE ##GlobalTempEmployee (
+    EmpID INT,
+    EmpName NVARCHAR(50)
+);
+
+
+Characteristics:
+
+Visible to all sessions and users.
+
+Exists until all sessions referencing it are closed.
+
+🔹 3. What is a Table Variable?
+
+A Table Variable is a variable that stores a set of rows (like a table) in memory.
+It is declared using the DECLARE statement and behaves similar to a temporary table, but with different scope and performance characteristics.
+
+Syntax:
+
+DECLARE @EmpTable TABLE (
+    EmpID INT,
+    EmpName NVARCHAR(50),
+    DeptID INT
+);
+
+
+Usage:
+
+INSERT INTO @EmpTable VALUES (1, 'Jane Smith', 4);
+SELECT * FROM @EmpTable;
+
+
+Characteristics:
+
+Scope is limited to the batch, function, or stored procedure where it’s declared.
+
+Stored in memory (primarily) but can spill to tempdb for large data sets.
+
+No statistics maintained → may affect performance on large data sets.
+
+🔹 4. Key Differences: Temporary Table vs Table Variable
+Feature	Temporary Table (#temp)	Table Variable (@table)
+Storage Location	Stored in tempdb	Stored in memory (spills to tempdb if large)
+Declaration	Created using CREATE TABLE	Declared using DECLARE @table
+Scope	Valid for the current session or connection	Valid only within batch/procedure/function
+Transactions	Participates fully in transactions (ROLLBACK/COMMIT)	Limited participation; cannot be rolled back fully in all cases
+Indexes	Can create explicit indexes	Can only have PRIMARY KEY or UNIQUE constraints
+Statistics	Maintains statistics → optimizer can estimate rows	No statistics → may cause suboptimal execution plans
+Performance	Better for large data volumes (supports indexing, statistics)	Better for small data volumes (less overhead)
+Nesting in Stored Procs	Can be used across nested procs	Scope limited to current proc/batch
+ALTER Operations	Table structure can be altered after creation	Cannot alter after declaration
+Recompilation	May cause recompilation of stored procs	Does not cause recompilation
+Use in Functions	Not allowed	Allowed (only table variable can be used inside UDFs)
+Persistence	Until session ends	Until procedure/batch ends
+Can use TRUNCATE	✅ Yes	❌ No
+🔹 5. Examples and Use Cases
+🧩 Example 1 – Using a Temporary Table
+CREATE TABLE #EmployeeTemp (
+    EmpID INT,
+    EmpName NVARCHAR(50),
+    Salary DECIMAL(10,2)
+);
+
+INSERT INTO #EmployeeTemp VALUES
+(1, 'John Doe', 50000),
+(2, 'Jane Smith', 60000);
+
+-- Query Data
+SELECT * FROM #EmployeeTemp WHERE Salary > 55000;
+
+-- Drop Temp Table (optional, auto drops at session end)
+DROP TABLE #EmployeeTemp;
+
+
+Use Case:
+Used when working with large datasets, joins, or aggregations that benefit from indexing and statistics.
+
+🧩 Example 2 – Using a Table Variable
+DECLARE @EmployeeTable TABLE (
+    EmpID INT PRIMARY KEY,
+    EmpName NVARCHAR(50),
+    Salary DECIMAL(10,2)
+);
+
+INSERT INTO @EmployeeTable VALUES
+(1, 'John Doe', 50000),
+(2, 'Jane Smith', 60000);
+
+SELECT * FROM @EmployeeTable WHERE Salary > 55000;
+
+
+Use Case:
+Used for small datasets or intermediate calculations within a stored procedure or function.
+
+🧩 Example 3 – Transaction Behavior
+BEGIN TRANSACTION;
+
+CREATE TABLE #TempTable (ID INT);
+INSERT INTO #TempTable VALUES (1);
+
+ROLLBACK TRANSACTION;
+
+SELECT * FROM #TempTable; -- ❌ Table no longer exists (rolled back)
+
+BEGIN TRANSACTION;
+
+DECLARE @TableVar TABLE (ID INT);
+INSERT INTO @TableVar VALUES (1);
+
+ROLLBACK TRANSACTION;
+
+SELECT * FROM @TableVar; -- ✅ Still exists; table variable unaffected
+
+🧩 Example 4 – Performance with Large Data
+-- Temporary table: optimizer uses statistics
+CREATE TABLE #LargeData (ID INT);
+INSERT INTO #LargeData
+SELECT TOP 100000 ROW_NUMBER() OVER (ORDER BY (SELECT NULL))
+FROM sys.objects a CROSS JOIN sys.objects b;
+
+SELECT COUNT(*) FROM #LargeData;  -- Fast with statistics
+
+-- Table variable: no statistics → slower on large data
+DECLARE @LargeTable TABLE (ID INT);
+INSERT INTO @LargeTable
+SELECT TOP 100000 ROW_NUMBER() OVER (ORDER BY (SELECT NULL))
+FROM sys.objects a CROSS JOIN sys.objects b;
+
+SELECT COUNT(*) FROM @LargeTable; -- May be slower
+
+
+Explanation:
+Temporary tables are generally faster for large data because they maintain statistics and can use indexes efficiently.
+
+🔹 6. When to Use Which
+Scenario	Recommended Option	Reason
+Small, simple datasets	Table Variable	Lightweight, in-memory
+Large datasets or joins	Temporary Table	Statistics & indexing help performance
+In a function	Table Variable	Temp tables not allowed
+Need to create/destroy dynamically	Temporary Table	More flexible, can use CREATE / DROP
+Need to roll back transactions	Temporary Table	Fully transaction-compliant
+Multiple batches or nested procs	Temporary Table	Wider scope
+Short, isolated calculations	Table Variable	Minimal overhead
+🔹 7. Indexing Capabilities
+
+Temporary Tables
+
+Can create clustered/non-clustered indexes.
+
+Example:
+
+CREATE INDEX IX_Temp_Salary ON #EmployeeTemp(Salary);
+
+
+Table Variables
+
+Cannot create indexes explicitly.
+
+But can define PRIMARY KEY or UNIQUE constraints (which create indexes internally):
+
+DECLARE @Emp TABLE (
+    EmpID INT PRIMARY KEY,
+    EmpName NVARCHAR(50)
+);
+
+🔹 8. Scope & Lifetime
+Object Type	Scope	Lifetime	Visibility
+Local Temp Table	Current session	Until session ends	Session-only
+Global Temp Table	All sessions	Until all sessions close	Global
+Table Variable	Current batch/procedure	Until batch/procedure ends	Session-only
+🔹 9. Storage and Memory Management
+Feature	Temporary Table	Table Variable
+Storage Location	tempdb	Memory (spills to tempdb if large)
+Logging	Logged in tempdb transaction log	Minimal logging
+I/O Overhead	Higher (disk-based)	Lower (memory-based)
+Performance (Small Data)	Slight overhead	Faster
+Performance (Large Data)	Better (due to statistics)	Slower (no statistics)
+🔹 10. Best Practices
+
+✅ Use temporary tables for complex queries, joins, and large result sets.
+✅ Use table variables for small, scoped data manipulations.
+✅ Avoid mixing both unnecessarily.
+✅ Always drop temporary tables explicitly if not needed (DROP TABLE).
+✅ Create indexes on temp tables when performance matters.
+✅ Avoid using table variables for large result sets — can degrade performance.
+✅ Use meaningful names (e.g., #TempOrders, @OrderSummary).
+✅ Keep SET NOCOUNT ON in stored procedures to improve performance.
+
+🔹 11. Common Interview Questions
+
+Difference between temporary tables and table variables?
+
+Which is faster — and when?
+
+Can table variables be used in transactions?
+
+Can you create an index on a table variable?
+
+What is the scope of a temporary table?
+
+Why does SQL Server use tempdb for both?
+
+Can you use a temporary table inside a function?
+
+Can a table variable store large data sets?
+
+What happens when a connection closes — which object remains?
+
+How are statistics handled in both?
+
+🔹 12. Quick Summary Table
+Aspect	Temporary Table	Table Variable
+Storage	tempdb	Memory (tempdb if large)
+Scope	Session	Batch / Procedure
+Statistics	✅ Yes	❌ No
+Indexes	Fully supported	Only PK/Unique
+Transactions	Fully supported	Limited
+Performance (Small Data)	Slight overhead	Better
+Performance (Large Data)	Better	Poorer
+Usage in Function	❌ Not allowed	✅ Allowed
+Alter Structure	✅ Yes	❌ No
+Created by	CREATE TABLE	DECLARE
+
+✅ In summary:
+
+Temporary Tables are better for large, complex, or multi-user scenarios — with indexes, statistics, and transactional control.
+
+Table Variables are ideal for lightweight, small datasets — especially inside stored procedures and functions.
+
+Choose based on data volume, scope, and performance needs.
