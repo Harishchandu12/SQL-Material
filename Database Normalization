@@ -1,0 +1,217 @@
+📘 Database Normalization
+🔹 1. Introduction
+
+Normalization is the process of organizing a database to:
+
+Reduce data redundancy
+
+Improve data integrity
+
+Simplify maintenance and updates
+
+Introduced by E.F. Codd
+
+Divides data into multiple related tables to remove anomalies:
+
+Insertion anomaly: Can't insert data without providing other unrelated data
+
+Update anomaly: Updating one value requires multiple rows to be updated
+
+Deletion anomaly: Deleting a record removes other important data
+
+🔹 2. Normal Forms Overview
+Normal Form	Goal	Requirement
+1NF (First Normal Form)	Eliminate repeating groups	Each column contains atomic values, no arrays or lists
+2NF (Second Normal Form)	Remove partial dependency	Table must be in 1NF and every non-key column fully depends on entire primary key
+3NF (Third Normal Form)	Remove transitive dependency	Table must be in 2NF and non-key columns depend only on primary key
+BCNF (Boyce-Codd NF)	Handle anomalies when composite keys exist	Every determinant is a candidate key
+🔹 3. 1NF – First Normal Form
+
+Definition:
+
+Table should have atomic (indivisible) values.
+
+No repeating groups or arrays.
+
+Example (Non-1NF):
+
+StudentID	Name	Courses
+1	Alice	Math, Physics
+2	Bob	Chemistry
+
+Issues:
+
+Multiple values in Courses column → not atomic
+
+1NF Conversion:
+
+StudentID	Name	Course
+1	Alice	Math
+1	Alice	Physics
+2	Bob	Chemistry
+
+Each column contains single value
+
+Eliminates repeating groups
+
+🔹 4. 2NF – Second Normal Form
+
+Definition:
+
+Must be in 1NF
+
+Every non-key column must be fully dependent on the primary key
+
+Removes partial dependency (columns depending only on part of composite key)
+
+Example (Non-2NF):
+
+StudentID	CourseID	StudentName	CourseName
+1	101	Alice	Math
+1	102	Alice	Physics
+2	103	Bob	Chemistry
+
+Composite PK: (StudentID, CourseID)
+
+StudentName depends only on StudentID → partial dependency
+
+2NF Conversion:
+
+Student Table:
+
+StudentID	StudentName
+1	Alice
+2	Bob
+
+Course Table:
+
+CourseID	CourseName
+101	Math
+102	Physics
+103	Chemistry
+
+StudentCourse Table:
+
+StudentID	CourseID
+1	101
+1	102
+2	103
+
+Removes partial dependency
+
+🔹 5. 3NF – Third Normal Form
+
+Definition:
+
+Must be in 2NF
+
+No transitive dependency (non-key column depends on another non-key column)
+
+Example (Non-3NF):
+
+EmpID	EmpName	DeptID	DeptName
+1	John	10	HR
+2	Alice	20	IT
+
+DeptName depends on DeptID, not on EmpID → transitive dependency
+
+3NF Conversion:
+
+Employee Table:
+
+EmpID	EmpName	DeptID
+1	John	10
+2	Alice	20
+
+Department Table:
+
+DeptID	DeptName
+10	HR
+20	IT
+
+Removes transitive dependency
+
+Ensures non-key attributes depend only on primary key
+
+🔹 6. BCNF – Boyce-Codd Normal Form
+
+Definition:
+
+Stronger version of 3NF
+
+Every determinant must be a candidate key
+
+Handles anomalies with composite keys or overlapping dependencies
+
+Example (Non-BCNF):
+
+Course	Instructor	Room
+Math	John	R1
+Physics	Alice	R2
+Math	Alice	R1
+
+Room → Course (functional dependency), but Instructor is not a key → violates BCNF
+
+BCNF Conversion:
+
+CourseInstructor Table:
+
+Course	Instructor
+Math	John
+Math	Alice
+Physics	Alice
+
+CourseRoom Table:
+
+Course	Room
+Math	R1
+Physics	R2
+
+Eliminates anomalies when composite keys exist
+
+🔹 7. Normalization Summary Table
+Normal Form	Requirement	Problem Solved	Example Concept
+1NF	Atomic values, no repeating groups	Repeating data in column	Split multiple courses into separate rows
+2NF	1NF + full dependency on PK	Partial dependency	Separate student/course info into multiple tables
+3NF	2NF + no transitive dependency	Transitive dependency	Split dept info into separate table
+BCNF	Every determinant is a candidate key	Composite key anomalies	Separate tables for course-instructor-room
+🔹 8. Benefits of Normalization
+
+Reduces data redundancy
+
+Improves data integrity
+
+Easier maintenance and updates
+
+Optimizes storage
+
+Minimizes anomalies (insert, update, delete)
+
+🔹 9. Denormalization Consideration
+
+Sometimes denormalization is used for performance optimization
+
+Common in OLAP / reporting databases where read-heavy operations dominate
+
+Tradeoff: redundancy for faster queries
+
+🔹 10. Interview / Practical Notes
+Question	Answer
+What is normalization?	Organizing database to reduce redundancy and improve integrity
+1NF requirement?	Atomic values, no repeating groups
+2NF requirement?	1NF + all non-key columns fully depend on PK
+3NF requirement?	2NF + no transitive dependencies
+BCNF requirement?	Every determinant is a candidate key
+Difference between 3NF and BCNF?	BCNF handles anomalies with overlapping/composite keys
+
+✅ In Summary
+
+1NF → atomic columns
+
+2NF → remove partial dependency
+
+3NF → remove transitive dependency
+
+BCNF → stronger version of 3NF for composite keys
+
+Proper normalization ensures efficient, reliable, maintainable databases.
