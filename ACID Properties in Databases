@@ -1,0 +1,232 @@
+📘 ACID Properties in Databases — Complete Notes
+🔹 1. Introduction
+
+In any Relational Database Management System (RDBMS), data consistency and reliability are critical — especially when multiple users or transactions are modifying data at the same time.
+
+To ensure that transactions are reliable, consistent, and recoverable, databases follow the ACID properties.
+
+🔹 2. What is a Transaction?
+
+A Transaction is a sequence of one or more SQL operations (like INSERT, UPDATE, DELETE) that are executed as a single logical unit of work.
+
+A transaction must either:
+
+Complete fully (commit), or
+
+Fail completely (rollback)
+
+to maintain the integrity of the database.
+
+🔹 3. Definition: ACID
+
+The term ACID stands for:
+
+Property	Meaning
+A	Atomicity
+C	Consistency
+I	Isolation
+D	Durability
+
+Each property ensures a specific guarantee about how transactions behave.
+
+🔹 4. A → Atomicity
+🧩 Definition
+
+Atomicity ensures that a transaction is all-or-nothing.
+Either all operations in a transaction are executed successfully, or none are.
+
+If any part of the transaction fails, the entire transaction is rolled back, leaving the database unchanged.
+
+🧩 Example
+BEGIN TRANSACTION;
+
+UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = 1; -- Debit from A
+UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = 2; -- Credit to B
+
+IF @@ERROR <> 0
+    ROLLBACK TRANSACTION;
+ELSE
+    COMMIT TRANSACTION;
+
+
+Explanation:
+
+If the first statement succeeds but the second fails, the entire transaction rolls back.
+
+Ensures money is not deducted without being credited — either both happen or none.
+
+🧩 Real-World Analogy
+
+Think of it like an ATM withdrawal:
+If the system fails after debiting your account but before dispensing cash, the transaction must revert.
+Atomicity ensures you don’t lose money due to a partial operation.
+
+🔹 5. C → Consistency
+🧩 Definition
+
+Consistency ensures that a transaction brings the database from one valid state to another valid state, maintaining all integrity constraints (like primary keys, foreign keys, unique constraints, etc.).
+
+After any transaction, all data must be valid according to defined rules.
+
+🧩 Example
+BEGIN TRANSACTION;
+
+INSERT INTO Orders (OrderID, CustomerID, TotalAmount)
+VALUES (101, 5001, 2500);
+
+INSERT INTO Payments (PaymentID, OrderID, Amount)
+VALUES (201, 101, 2500);
+
+COMMIT TRANSACTION;
+
+
+If a constraint exists:
+
+FOREIGN KEY (OrderID) REFERENCES Orders(OrderID)
+
+
+→ The database will reject any payment for a non-existing order.
+
+Explanation:
+If you try to insert a payment record for a non-existent order, it violates referential integrity — the DBMS will roll back the transaction to maintain consistency.
+
+🧩 Real-World Analogy
+
+When transferring funds between accounts, the total money in the system (A + B) should remain the same before and after the transaction.
+If that balance changes, consistency is violated.
+
+🔹 6. I → Isolation
+🧩 Definition
+
+Isolation ensures that concurrent transactions do not interfere with each other.
+Each transaction acts as if it is executed alone in the system.
+
+In multi-user environments, multiple transactions may access the same data simultaneously — isolation prevents them from corrupting each other’s results.
+
+🧩 Example
+Scenario	Description
+Transaction A	Reads account balance = 10,000
+Transaction B	Updates account balance to 12,000
+Isolation Ensures	Transaction A doesn’t see the intermediate update of B until B commits
+🧩 SQL Example
+-- Transaction 1
+BEGIN TRAN;
+UPDATE Products SET Quantity = Quantity - 1 WHERE ProductID = 101;
+-- Not yet committed
+
+-- Transaction 2
+SELECT Quantity FROM Products WHERE ProductID = 101; 
+-- Depending on isolation level, may or may not see the change
+
+🧩 Isolation Levels
+Level	Description	Phenomena Prevented
+READ UNCOMMITTED	Can read uncommitted data (dirty read)	None
+READ COMMITTED	Cannot read uncommitted data	Prevents dirty reads
+REPEATABLE READ	Ensures same data can’t change during transaction	Prevents dirty & non-repeatable reads
+SERIALIZABLE	Full isolation (acts like serial execution)	Prevents all anomalies
+🧩 Real-World Analogy
+
+Two people booking the last seat in a flight simultaneously.
+Isolation ensures only one transaction succeeds — preventing double booking.
+
+🔹 7. D → Durability
+🧩 Definition
+
+Durability ensures that once a transaction is committed, its changes are permanent, even if the system crashes immediately after.
+
+The committed data is stored in non-volatile storage (disk), and the DBMS can recover it using transaction logs.
+
+🧩 Example
+BEGIN TRANSACTION;
+UPDATE Employee SET Salary = Salary + 5000 WHERE EmpID = 10;
+COMMIT TRANSACTION;
+
+
+Even if the server crashes right after the COMMIT,
+→ The new salary remains updated after restart because the change is recorded in the transaction log.
+
+🧩 Real-World Analogy
+
+When you make an online payment and receive “Transaction Successful”,
+the system ensures it’s recorded permanently in backend logs even if power fails a second later.
+
+🔹 8. How ACID Works Together
+Property	Ensures
+Atomicity	The transaction executes completely or not at all
+Consistency	The database remains valid before and after the transaction
+Isolation	Transactions do not interfere with each other
+Durability	Committed changes are permanent and recoverable
+
+Together, they ensure that transactions are reliable, predictable, and recoverable — even under failure or concurrency.
+
+🔹 9. ACID Example: Fund Transfer
+🧩 Scenario
+
+Transfer ₹1000 from Account A → Account B
+
+Step	Operation	Description
+1	Begin Transaction	Start atomic unit
+2	Debit A	UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = A
+3	Credit B	UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = B
+4	Commit	Save permanently if both updates succeed
+5	Rollback	If any step fails, undo all changes
+🧩 How ACID applies
+Property	What Happens
+Atomicity	Both debit and credit succeed or both fail.
+Consistency	Total money remains the same.
+Isolation	Other users can’t see partial updates.
+Durability	Once committed, transfer remains even after crash.
+🔹 10. ACID vs BASE (for Distributed Systems)
+
+In distributed or NoSQL systems, ACID may be relaxed for better scalability.
+An alternative model called BASE is often used.
+
+ACID	BASE
+Atomicity	Basically Available
+Consistency	Soft-state
+Isolation	Eventually Consistent
+Durability	(Weaker durability)
+
+In short:
+
+ACID → Reliability (RDBMS like SQL Server, Oracle, MySQL)
+
+BASE → Scalability (NoSQL like Cassandra, MongoDB)
+
+🔹 11. Advantages of ACID Compliance
+
+✅ Ensures data integrity under all conditions.
+✅ Provides predictable behavior for users and systems.
+✅ Prevents corruption and anomalies under concurrent access.
+✅ Enables recovery after crashes via logs.
+✅ Critical for banking, financial, healthcare, and enterprise systems.
+
+🔹 12. Disadvantages (Trade-offs)
+
+⚠️ Slight performance overhead due to transaction logging.
+⚠️ Limits scalability in distributed systems (compared to BASE).
+⚠️ Increased resource usage (locks, logs, rollbacks).
+⚠️ Potential blocking under strict isolation levels (e.g., SERIALIZABLE).
+
+🔹 13. Interview-Focused Q&A
+Question	Quick Answer
+What does ACID stand for?	Atomicity, Consistency, Isolation, Durability
+Why are ACID properties important?	To ensure reliability and integrity of transactions
+What happens if one statement in a transaction fails?	The whole transaction is rolled back (Atomicity)
+Which property ensures concurrent transactions don’t affect each other?	Isolation
+Which property ensures permanent storage after commit?	Durability
+How does DBMS achieve durability?	Using transaction logs and recovery mechanisms
+What’s the difference between ACID and BASE?	ACID ensures consistency, BASE ensures scalability
+Which SQL command enforces Atomicity?	BEGIN TRANSACTION, COMMIT, ROLLBACK
+🔹 14. Quick Summary Table
+Property	Purpose	Example	Ensures
+A – Atomicity	All or none	Debit/Credit both happen or none	Transaction integrity
+C – Consistency	Valid state → valid state	FK constraints, balance totals	Data validity
+I – Isolation	No interference	Concurrent transactions	Data correctness
+D – Durability	Permanent results	Commit survives crash	Recovery reliability
+
+✅ In summary:
+ACID properties form the foundation of transaction management in databases.
+They guarantee that every transaction is complete, consistent, independent, and permanent, even in concurrent or failure conditions.
+
+These are core to RDBMS reliability and a must-know concept for every IT professional working with data systems.
