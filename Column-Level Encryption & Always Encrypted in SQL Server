@@ -1,0 +1,261 @@
+📘 Column-Level Encryption & Always Encrypted in SQL Server
+
+Designed for 4+ years experienced IT professionals and interview preparation — with explanations, examples, and best practices.
+
+🔹 1. What is Column-Level Encryption?
+
+Column-level encryption protects sensitive data stored in specific table columns, such as:
+
+Credit card numbers
+
+Social Security Numbers (SSNs)
+
+Passwords
+
+Financial or medical data
+
+It ensures that even if someone gains access to the database, they cannot read sensitive data without the encryption keys.
+
+🔹 2. Types of Encryption in SQL Server
+Encryption Type	Scope	Description
+Column-Level Encryption (CLE)	Table column	Manual encryption/decryption using SQL functions
+Transparent Data Encryption (TDE)	Entire database	Encrypts data files (at rest) automatically
+Always Encrypted (AE)	Column-level	End-to-end encryption, data stays encrypted even in memory/queries
+
+We’ll focus here on:
+
+Column-level encryption (manual)
+
+Always Encrypted (automatic, client-driven)
+
+🔹 3. Column-Level Encryption (CLE)
+✅ Definition
+
+CLE is manual encryption/decryption of specific columns using built-in SQL functions such as:
+
+EncryptByKey()
+
+DecryptByKey()
+
+EncryptByPassPhrase()
+
+DecryptByPassPhrase()
+
+🧩 Example: Step-by-Step Implementation
+Step 1️⃣: Create a Master Key
+CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'P@ssword123!';
+
+Step 2️⃣: Create a Certificate
+CREATE CERTIFICATE EmpDataCert
+WITH SUBJECT = 'Employee Data Encryption';
+
+Step 3️⃣: Create a Symmetric Key
+
+A symmetric key uses the same key for encryption and decryption.
+
+CREATE SYMMETRIC KEY EmpSymKey
+WITH ALGORITHM = AES_256
+ENCRYPTION BY CERTIFICATE EmpDataCert;
+
+Step 4️⃣: Create Table with Sensitive Data
+CREATE TABLE Employees (
+    EmpID INT PRIMARY KEY,
+    EmpName NVARCHAR(100),
+    SSN VARBINARY(256)  -- Encrypted data
+);
+
+Step 5️⃣: Insert Encrypted Data
+
+Before inserting, open the symmetric key.
+
+OPEN SYMMETRIC KEY EmpSymKey
+DECRYPTION BY CERTIFICATE EmpDataCert;
+
+INSERT INTO Employees (EmpID, EmpName, SSN)
+VALUES (1, 'Alice', EncryptByKey(Key_GUID('EmpSymKey'), '123-45-6789'));
+
+CLOSE SYMMETRIC KEY EmpSymKey;
+
+Step 6️⃣: Decrypt Data for Reading
+OPEN SYMMETRIC KEY EmpSymKey
+DECRYPTION BY CERTIFICATE EmpDataCert;
+
+SELECT EmpID, EmpName,
+       CONVERT(NVARCHAR(20), DecryptByKey(SSN)) AS SSN
+FROM Employees;
+
+CLOSE SYMMETRIC KEY EmpSymKey;
+
+✅ Output
+EmpID	EmpName	SSN
+1	Alice	123-45-6789
+
+In the table (physically):
+
+EmpID	EmpName	SSN (Encrypted)
+1	Alice	0xA69F457C1E...
+
+So even DBAs without the decryption key cannot read SSN values directly.
+
+🔐 Key Hierarchy Overview
+Database Master Key (DMK)
+    ↓
+Certificate
+    ↓
+Symmetric Key
+    ↓
+Encrypt/Decrypt Column Data
+
+
+Each layer provides an additional level of protection.
+
+🔹 4. Always Encrypted (AE)
+✅ Definition
+
+Always Encrypted (introduced in SQL Server 2016) is an end-to-end encryption feature that ensures sensitive data remains encrypted both at rest and in transit, and is only decrypted by the client application.
+
+🔒 Key Difference from CLE:
+
+With CLE, the SQL Server can see decrypted data (inside queries).
+With AE, the SQL Server never sees plaintext data — only the client application does.
+
+🔹 5. How Always Encrypted Works
+
+The encryption and decryption happen in the client application, not in SQL Server.
+
+The keys are stored outside SQL Server (e.g., Windows Certificate Store or Azure Key Vault).
+
+SQL Server only stores and processes ciphertext (encrypted data).
+
+🔸 Always Encrypted Architecture
+Client App (Encryption/Decryption)
+      ↓
+Encrypted Query (with parameters)
+      ↓
+SQL Server (stores ciphertext only)
+      ↓
+Encrypted Data in Table
+
+
+So even DBAs or attackers with access to the database cannot read the sensitive data.
+
+🔹 6. Types of Encryption in Always Encrypted
+Type	Description	Use Case
+Deterministic Encryption	Same plaintext → same ciphertext	Allows equality comparisons (=) but not pattern matching
+Randomized Encryption	Different ciphertext each time	More secure, but cannot be used in WHERE clauses or joins
+🔹 7. Setting up Always Encrypted (Example)
+
+You can configure Always Encrypted via SQL Server Management Studio (SSMS) or T-SQL.
+
+Let’s look at a basic T-SQL example.
+
+🧩 Example
+Step 1️⃣: Create Column Master Key (CMK)
+CREATE COLUMN MASTER KEY CMK_LocalKey
+WITH (
+    KEY_STORE_PROVIDER_NAME = N'MSSQL_CERTIFICATE_STORE',
+    KEY_PATH = N'CurrentUser/My/A1B2C3D4E5F6G7H8I9J0'
+);
+
+Step 2️⃣: Create Column Encryption Key (CEK)
+CREATE COLUMN ENCRYPTION KEY CEK_Emp
+WITH VALUES (
+    COLUMN_MASTER_KEY = CMK_LocalKey,
+    ALGORITHM = 'RSA_OAEP',
+    ENCRYPTED_VALUE = 0xA89BCDEF1234...
+);
+
+Step 3️⃣: Create Table with Encrypted Column
+CREATE TABLE Employees_AE (
+    EmpID INT PRIMARY KEY,
+    EmpName NVARCHAR(100),
+    SSN NVARCHAR(20) COLLATE Latin1_General_BIN2 ENCRYPTED WITH (
+        COLUMN_ENCRYPTION_KEY = CEK_Emp,
+        ENCRYPTION_TYPE = DETERMINISTIC,
+        ALGORITHM = 'AEAD_AES_256_CBC_HMAC_SHA_256'
+    ) NULL
+);
+
+Step 4️⃣: Insert Data (via Always Encrypted enabled client)
+INSERT INTO Employees_AE VALUES (1, 'Bob', '987-65-4321');
+
+Step 5️⃣: Query Data
+
+If queried from:
+
+Enabled client → shows plaintext (987-65-4321)
+
+SQL Server or non-enabled client → shows ciphertext (e.g., 0x5F6A0D...)
+
+🧠 Example Behavior
+Context	Result
+Client with encryption key	Sees actual SSN
+DBA in SSMS without key	Sees encrypted binary data
+🔹 8. Key Management in Always Encrypted
+Key Type	Description	Location
+Column Master Key (CMK)	Protects the CEK	Stored in external key store (e.g., Windows Certificate Store, Azure Key Vault)
+Column Encryption Key (CEK)	Encrypts/decrypts column data	Stored in SQL Server (encrypted with CMK)
+🔹 9. Advantages of Always Encrypted
+
+✅ End-to-end protection — SQL Server never sees plaintext data
+✅ Protects against:
+
+Malicious DBAs
+
+Data leaks
+
+Unauthorized queries
+✅ Transparent to the application
+✅ Meets compliance standards (GDPR, HIPAA, PCI DSS)
+
+🔹 10. Limitations of Always Encrypted
+
+⚠️ Not all operations are supported:
+
+Pattern matching (LIKE, >, <, BETWEEN)
+
+Non-deterministic joins
+
+Range queries (on randomized columns)
+
+Some functions (e.g., LEN, SUBSTRING)
+
+⚠️ Slight performance overhead on encryption/decryption in clients
+⚠️ Application changes needed to enable encryption in connection string
+
+🔹 11. Performance & Security Comparison
+Feature	Column-Level Encryption	Always Encrypted
+Encryption location	Inside SQL Server	In client application
+Decryption visibility to server	Yes	No
+Key storage	In SQL Server	External key store
+Complexity	Medium	High
+Use Case	Internal DB security	End-to-end sensitive data protection
+🔹 12. Real-World Use Cases
+Scenario	Recommended Method
+Encrypt employee SSNs or bank accounts inside SQL Server	Column-Level Encryption
+Multi-tenant or cloud applications where DBAs shouldn’t access data	Always Encrypted
+Compliance with GDPR or HIPAA	Always Encrypted
+Low-sensitivity internal systems	CLE (simpler setup)
+🔹 13. Best Practices
+
+✅ Use AES_256 or better encryption algorithms.
+✅ Store keys securely (not in code or database).
+✅ Rotate keys periodically (key rotation policy).
+✅ Use Always Encrypted for highly sensitive data.
+✅ Use Deterministic encryption only when comparisons are needed.
+✅ Restrict certificate and key access to authorized users only.
+
+✅ Quick Summary
+Concept	Description	Example Function
+Column-Level Encryption (CLE)	Encrypt specific columns manually using keys	EncryptByKey(), DecryptByKey()
+Always Encrypted (AE)	End-to-end encryption; SQL Server never sees plaintext	Configured with COLUMN ENCRYPTION KEY
+Key Types	CMK (outside SQL Server), CEK (inside)	Used in AE
+Best For	Data at rest (CLE) vs. data in use (AE)	CLE → internal; AE → cloud or sensitive systems
+🧠 Interview Tip:
+
+💬 “What is the difference between Always Encrypted and Transparent Data Encryption (TDE)?”
+👉 Answer:
+
+TDE encrypts entire database files (at rest), not individual data.
+
+Always Encrypted encrypts specific columns, and data remains encrypted in transit and in memory.
