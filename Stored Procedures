@@ -1,0 +1,303 @@
+🔹 1. Definition
+
+A Stored Procedure is a precompiled collection of SQL statements stored and executed on the database server.
+
+Instead of sending individual SQL queries from an application, you send a single call to execute a stored procedure — improving performance, security, and maintainability.
+
+🔹 2. Why Use Stored Procedures
+Benefit	Description
+Performance	Compiled once and cached in memory; reduces parsing overhead.
+Security	Can restrict direct table access; grant EXECUTE permissions only.
+Maintainability	Encapsulates business logic at the database level.
+Reusability	Can be called from multiple applications or scripts.
+Network Efficiency	Reduces network traffic — multiple SQL statements execute in one call.
+Error Handling	Centralized error management with TRY…CATCH blocks (SQL Server).
+🔹 3. Basic Syntax (SQL Server)
+CREATE PROCEDURE procedure_name
+    @param1 datatype = default_value,
+    @param2 datatype OUTPUT
+AS
+BEGIN
+    -- SQL statements
+END;
+
+
+Execution:
+
+EXEC procedure_name @param1 = value, @param2 = @outputVar OUTPUT;
+
+🔹 4. Types of Parameters
+Parameter Type	Description	Example
+Input	Passes data into the procedure	@EmpID INT
+Output	Returns data from the procedure	@TotalSales DECIMAL(10,2) OUTPUT
+Input/Output (INOUT)	Used in some DBMSs (Oracle/MySQL) to pass data in and out	INOUT p_total DECIMAL(10,2)
+
+🔹 5. Examples
+🧩 A. Stored Procedure with Input Parameter
+CREATE PROCEDURE usp_GetEmployeeDetails
+    @EmpID INT
+AS
+BEGIN
+    SELECT EmpID, EmpName, Department, Salary
+    FROM Employees
+    WHERE EmpID = @EmpID;
+END;
+
+
+Execute:
+
+EXEC usp_GetEmployeeDetails @EmpID = 1001;
+
+🧩 B. Stored Procedure with Output Parameter
+CREATE PROCEDURE usp_GetTotalSalaryByDept
+    @DeptID INT,
+    @TotalSalary DECIMAL(10,2) OUTPUT
+AS
+BEGIN
+    SELECT @TotalSalary = SUM(Salary)
+    FROM Employees
+    WHERE DeptID = @DeptID;
+END;
+
+
+Execute and Retrieve Output:
+
+DECLARE @Sum DECIMAL(10,2);
+EXEC usp_GetTotalSalaryByDept @DeptID = 2, @TotalSalary = @Sum OUTPUT;
+SELECT @Sum AS TotalSalary;
+
+🧩 C. Stored Procedure with Multiple Parameters
+CREATE PROCEDURE usp_InsertEmployee
+    @EmpName NVARCHAR(50),
+    @DeptID INT,
+    @Salary DECIMAL(10,2)
+AS
+BEGIN
+    INSERT INTO Employees (EmpName, DeptID, Salary)
+    VALUES (@EmpName, @DeptID, @Salary);
+
+    PRINT 'Employee record inserted successfully';
+END;
+
+
+Execution:
+
+EXEC usp_InsertEmployee @EmpName = 'John Doe', @DeptID = 3, @Salary = 45000;
+
+🧩 D. Stored Procedure Returning a Result Set
+CREATE PROCEDURE usp_GetHighEarners
+AS
+BEGIN
+    SELECT EmpID, EmpName, Salary
+    FROM Employees
+    WHERE Salary > 60000;
+END;
+
+
+Execution:
+
+EXEC usp_GetHighEarners;
+
+🔹 6. Error Handling in Stored Procedures
+
+Error handling ensures robustness and prevents application-level crashes.
+
+🧱 TRY...CATCH Block (SQL Server)
+CREATE PROCEDURE usp_UpdateEmployeeSalary
+    @EmpID INT,
+    @NewSalary DECIMAL(10,2)
+AS
+BEGIN
+    BEGIN TRY
+        UPDATE Employees
+        SET Salary = @NewSalary
+        WHERE EmpID = @EmpID;
+
+        PRINT 'Salary updated successfully';
+    END TRY
+
+    BEGIN CATCH
+        DECLARE @ErrorMsg NVARCHAR(4000);
+        SET @ErrorMsg = ERROR_MESSAGE();
+        PRINT 'Error: ' + @ErrorMsg;
+    END CATCH
+END;
+
+
+Explanation:
+
+BEGIN TRY … END TRY — code block where error may occur.
+
+BEGIN CATCH … END CATCH — handles exceptions.
+
+System functions:
+
+ERROR_NUMBER() — returns error code.
+
+ERROR_MESSAGE() — returns error message text.
+
+ERROR_LINE() — returns line number.
+
+🧱 Return Codes (Alternative Error Handling)
+
+Return values indicate execution status.
+
+CREATE PROCEDURE usp_DeleteEmployee
+    @EmpID INT
+AS
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM Employees WHERE EmpID = @EmpID)
+        RETURN -1;  -- Employee not found
+
+    DELETE FROM Employees WHERE EmpID = @EmpID;
+    RETURN 0;      -- Success
+END;
+
+
+Execute:
+
+DECLARE @Result INT;
+EXEC @Result = usp_DeleteEmployee @EmpID = 101;
+IF @Result = -1
+    PRINT 'Employee not found';
+ELSE
+    PRINT 'Employee deleted';
+
+🔹 7. Transactions in Stored Procedures
+
+Use transactions to ensure atomicity (all-or-nothing behavior).
+
+CREATE PROCEDURE usp_TransferFunds
+    @FromAcc INT,
+    @ToAcc INT,
+    @Amount DECIMAL(10,2)
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        UPDATE Accounts SET Balance = Balance - @Amount WHERE AccID = @FromAcc;
+        UPDATE Accounts SET Balance = Balance + @Amount WHERE AccID = @ToAcc;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        PRINT 'Error during transfer: ' + ERROR_MESSAGE();
+    END CATCH
+END;
+
+🔹 8. Dynamic SQL Inside Stored Procedures
+
+You can execute SQL strings dynamically using sp_executesql.
+
+CREATE PROCEDURE usp_GetDataDynamic
+    @TableName NVARCHAR(100)
+AS
+BEGIN
+    DECLARE @SQL NVARCHAR(MAX);
+    SET @SQL = 'SELECT * FROM ' + QUOTENAME(@TableName);
+    EXEC sp_executesql @SQL;
+END;
+
+
+Note: Always use QUOTENAME() to prevent SQL injection.
+
+🔹 9. Modifying and Dropping Procedures
+
+Modify Existing Procedure:
+
+ALTER PROCEDURE usp_GetEmployeeDetails
+    @EmpID INT
+AS
+BEGIN
+    SELECT EmpID, EmpName, Department, JoinDate, Salary
+    FROM Employees
+    WHERE EmpID = @EmpID;
+END;
+
+
+Drop Procedure:
+
+DROP PROCEDURE usp_GetEmployeeDetails;
+
+🔹 10. Stored Procedures in Other Databases
+🧩 Oracle Example
+CREATE OR REPLACE PROCEDURE GetEmpSalary(
+    p_EmpID IN NUMBER,
+    p_Salary OUT NUMBER
+) AS
+BEGIN
+    SELECT Salary INTO p_Salary FROM Employees WHERE EmpID = p_EmpID;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        p_Salary := NULL;
+END;
+
+🧩 MySQL Example
+DELIMITER //
+CREATE PROCEDURE GetEmployee(IN p_EmpID INT, OUT p_EmpName VARCHAR(50))
+BEGIN
+    SELECT EmpName INTO p_EmpName FROM Employees WHERE EmpID = p_EmpID;
+END //
+DELIMITER ;
+
+🔹 11. Performance Considerations
+Aspect	Description
+Compilation	Procedures are compiled once and cached.
+Parameter sniffing	SQL Server optimizes based on first execution parameter set.
+Avoid excessive logic	Keep SPs focused — not overburdened with complex business logic.
+Indexing	Proper indexes on base tables improve SP performance.
+SET NOCOUNT ON	Prevents extra “x rows affected” messages → better performance.
+
+Example:
+
+CREATE PROCEDURE usp_Example
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT * FROM Employees;
+END;
+
+🔹 12. Security Considerations
+
+Grant only EXECUTE permission on SPs to users.
+
+Deny direct table access.
+
+Use encryption to hide SP definition (SQL Server only):
+
+CREATE PROCEDURE usp_SecureLogic
+WITH ENCRYPTION
+AS
+BEGIN
+    SELECT TOP 1 * FROM SensitiveTable;
+END;
+
+
+Keep audit logs inside SPs for critical operations.
+
+🔹 13. Best Practices
+
+✅ Use meaningful naming conventions — e.g., usp_, sp_, proc_.
+✅ Always include error handling and transaction control.
+✅ Use output parameters or return codes for status reporting.
+✅ Keep procedures modular and reusable.
+✅ Include comments/documentation inside SPs.
+✅ Avoid *SELECT ; — specify column names.
+✅ Use parameterized queries to avoid SQL injection.
+✅ Regularly analyze execution plans for performance tuning.
+
+🔹 14. Interview Focus Areas
+
+Difference between stored procedure, function, and trigger.
+
+How input/output parameters work.
+
+How to handle exceptions and transactions.
+
+How to debug and optimize stored procedures.
+
+Use of sp_executesql and parameter sniffing issues.
+
+Use cases for dynamic SQL and schemabinding.
