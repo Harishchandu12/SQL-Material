@@ -1,0 +1,250 @@
+📘 Row-Level Security (RLS) in SQL Server
+🔹 1. What is Row-Level Security (RLS)?
+
+Row-Level Security (RLS) allows you to control access to individual rows in a table based on the executing user’s identity or role.
+
+It means:
+
+Different users can run the same query but see only the data they are authorized to view — automatically enforced by SQL Server.
+
+✅ Key Concept
+
+Traditional security (GRANT, DENY) controls which tables or columns a user can access.
+RLS goes one step further and controls which rows within those tables they can access.
+
+🧠 Example:
+User	Can Access
+HRUser	Employees in HR Department
+SalesUser	Employees in Sales Department
+
+If both users run:
+
+SELECT * FROM Employees;
+
+
+Each sees different subsets of data — enforced by RLS, not by query logic.
+
+🔹 2. Why Use RLS?
+✅ Advantages
+
+Centralized, consistent security policy at database level
+
+Prevents accidental or malicious data exposure
+
+Transparent to applications — no need to modify app queries
+
+Works with all query types (SELECT, UPDATE, DELETE)
+
+Simplifies multi-tenant or departmental systems
+
+⚠️ Limitations
+
+Slight overhead in query performance
+
+Must be carefully designed to avoid circular references or logic errors
+
+Applies only to user tables (not system tables)
+
+🔹 3. How Row-Level Security Works
+
+RLS uses two main components:
+
+Predicate Function – A table-valued function (TVF) that defines the filtering logic (returns 1 or 0 for each row).
+
+Security Policy – Binds the predicate function to a target table (enforces filtering automatically).
+
+🔸 Predicate Function Types
+Type	Purpose
+Filter Predicate	Filters rows out of result sets (SELECT, UPDATE, DELETE)
+Block Predicate	Prevents unauthorized rows from being inserted, updated, or deleted
+🔹 4. Creating a Row-Level Security Policy
+
+Let’s go through a step-by-step example 👇
+
+🧩 Example Scenario
+
+You have a table Employees:
+
+CREATE TABLE Employees (
+    EmpID INT PRIMARY KEY,
+    EmpName NVARCHAR(100),
+    Department NVARCHAR(50),
+    Salary DECIMAL(10,2)
+);
+
+
+Insert some data:
+
+INSERT INTO Employees VALUES
+(1, 'Alice', 'HR', 60000),
+(2, 'Bob', 'Sales', 55000),
+(3, 'Charlie', 'IT', 70000),
+(4, 'David', 'Sales', 50000);
+
+Step 1️⃣: Create Users
+CREATE USER HRUser WITHOUT LOGIN;
+CREATE USER SalesUser WITHOUT LOGIN;
+
+Step 2️⃣: Create Predicate Function
+
+This function returns 1 (true) if the row’s department matches the user’s name.
+
+CREATE SCHEMA Security;
+GO
+
+CREATE FUNCTION Security.fn_RLS_DepartmentPredicate(@Department AS NVARCHAR(50))
+RETURNS TABLE
+WITH SCHEMABINDING
+AS
+RETURN SELECT 1 AS fn_RLS_Result
+WHERE @Department = USER_NAME();
+GO
+
+
+🧠 Explanation:
+
+The function compares the Department column to the current user name.
+
+If they match → row is visible; otherwise → filtered out.
+
+Step 3️⃣: Create Security Policy
+
+Attach the predicate function to the table:
+
+CREATE SECURITY POLICY Security.RLS_DepartmentPolicy
+ADD FILTER PREDICATE Security.fn_RLS_DepartmentPredicate(Department)
+ON dbo.Employees
+WITH (STATE = ON);
+
+Step 4️⃣: Test the Policy
+As HRUser:
+EXECUTE AS USER = 'HRUser';
+SELECT * FROM Employees;
+REVERT;
+
+
+Output:
+
+EmpID | EmpName | Department | Salary
+1     | Alice   | HR         | 60000
+
+As SalesUser:
+EXECUTE AS USER = 'SalesUser';
+SELECT * FROM Employees;
+REVERT;
+
+
+Output:
+
+EmpID | EmpName | Department | Salary
+2     | Bob     | Sales      | 55000
+4     | David   | Sales      | 50000
+
+
+✅ Each user sees only rows for their own department — automatically enforced by SQL Server.
+
+🔹 5. Adding a Block Predicate (Optional)
+
+A block predicate prevents users from modifying or inserting data that violates security rules.
+
+Example:
+
+Add a block predicate to prevent a user from inserting data for another department.
+
+ALTER SECURITY POLICY Security.RLS_DepartmentPolicy
+ADD BLOCK PREDICATE Security.fn_RLS_DepartmentPredicate(Department)
+ON dbo.Employees AFTER INSERT;
+
+
+Now, if HRUser tries to insert a row for Sales department:
+
+EXECUTE AS USER = 'HRUser';
+INSERT INTO Employees VALUES (5, 'Eve', 'Sales', 45000);
+REVERT;
+
+
+Result:
+
+Msg 33506, Level 16, State 1
+The attempted operation failed because the target object has row level security enabled and the attempted operation violated the security policy for that object.
+
+
+💥 Blocked! — The security policy enforces consistent access rules for all DML operations.
+
+🔹 6. Managing and Maintaining RLS
+View all policies:
+SELECT * FROM sys.security_policies;
+
+View predicates attached to a policy:
+SELECT * FROM sys.security_predicates;
+
+Disable or enable policy:
+ALTER SECURITY POLICY Security.RLS_DepartmentPolicy WITH (STATE = OFF);  -- Disable
+ALTER SECURITY POLICY Security.RLS_DepartmentPolicy WITH (STATE = ON);   -- Enable
+
+Drop policy:
+DROP SECURITY POLICY Security.RLS_DepartmentPolicy;
+
+🔹 7. Real-World Use Cases
+Use Case	Description
+Multi-tenant applications	Each tenant sees only their own data rows.
+Department-based access	Employees can view only their department’s data.
+Regional data control	Regional managers access only their own region’s customers.
+Compliance & auditing	Enforce data segregation to meet legal/security standards.
+🔹 8. Performance Considerations
+Aspect	Detail
+Optimization	Predicate function must be schema-bound and deterministic for best performance.
+Index usage	SQL Server can still use indexes effectively under RLS.
+Plan caching	Plans are reused across users; RLS filters results dynamically.
+Testing	Always test under realistic user contexts using EXECUTE AS USER.
+🔹 9. Best Practices
+
+✅ Design predicate functions to be:
+
+Simple and deterministic
+
+Schema-bound
+
+Based on user identity or role membership
+
+✅ Use schemas like Security for organization.
+✅ Use roles instead of usernames when possible (IS_MEMBER('RoleName')).
+✅ Use block predicates to protect against unauthorized inserts/updates.
+✅ Regularly audit and review RLS policies.
+
+🔹 10. Advanced Example: Using Roles Instead of Usernames
+
+Sometimes, RLS should depend on a role, not a user name.
+
+CREATE FUNCTION Security.fn_RLS_RolePredicate(@Department AS NVARCHAR(50))
+RETURNS TABLE
+WITH SCHEMABINDING
+AS
+RETURN SELECT 1 AS fn_RLS_Result
+WHERE 
+    (@Department = 'HR' AND IS_MEMBER('HR_Role') = 1)
+    OR (@Department = 'Sales' AND IS_MEMBER('Sales_Role') = 1);
+
+
+This way:
+
+Users in HR_Role see HR rows.
+
+Users in Sales_Role see Sales rows.
+
+✅ Summary Table
+Concept	Description	Example
+Predicate Function	Defines logic to allow/deny row visibility	fn_RLS_DepartmentPredicate()
+Security Policy	Attaches function to table	CREATE SECURITY POLICY ...
+Filter Predicate	Filters rows in SELECT/UPDATE/DELETE	ADD FILTER PREDICATE
+Block Predicate	Blocks unauthorized DML operations	ADD BLOCK PREDICATE
+Enable/Disable Policy	Turn RLS on or off	ALTER SECURITY POLICY ... WITH (STATE = ON)
+🧠 Key Takeaways
+
+RLS enforces fine-grained security directly at the data layer.
+
+It’s transparent to applications and centrally managed.
+
+Always design simple, efficient predicates for optimal performance.
+
+Combine RLS with roles and schemas for scalable security management.
