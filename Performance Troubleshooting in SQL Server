@@ -1,0 +1,206 @@
+📘 Performance Troubleshooting in SQL Server
+🔹 1. Introduction
+
+Performance troubleshooting is critical to identify slow queries, resource bottlenecks, and inefficient plans.
+
+Two powerful tools in SQL Server are:
+
+SQL Server Profiler → captures real-time events.
+
+Dynamic Management Views (DMVs) → query internal system views for insights.
+
+🔹 2. SQL Server Profiler
+🧩 Definition
+
+SQL Server Profiler is a graphical tool that captures SQL Server events, queries, and performance metrics in real-time.
+
+Use cases:
+
+Identify slow-running queries
+
+Detect blocking and deadlocks
+
+Capture execution statistics
+
+Debug stored procedures and application queries
+
+🔹 2.1 Key Components
+
+Trace → session capturing specific events
+
+Events → queries, SP execution, login/logout, performance counters
+
+Columns → text data, duration, CPU, reads/writes, SPID
+
+Filters → limit captured data to specific databases, applications, or SPIDs
+
+🔹 2.2 Example: Capturing Long Running Queries
+
+Open SQL Server Profiler → File → New Trace → Connect to server.
+
+Use Tuning template → select events:
+
+SQL:BatchCompleted
+
+SP:Completed
+
+Set filters:
+
+Duration > 1000 ms
+
+Run trace → identify slow queries and high CPU queries.
+
+🔹 2.3 Tips
+
+Use server-side traces for production to reduce overhead.
+
+Capture minimal events to avoid performance impact.
+
+Combine with query execution plans for tuning.
+
+🔹 3. Dynamic Management Views (DMVs)
+🧩 Definition
+
+DMVs are system views that expose internal SQL Server state, performance metrics, and query statistics.
+
+Real-time insight into server health, queries, indexes, and resource usage
+
+Often used in query tuning and monitoring
+
+🔹 3.1 Common DMV Categories
+DMV Category	Purpose
+sys.dm_exec_requests	Current executing queries
+sys.dm_exec_sessions	Active sessions and connections
+sys.dm_exec_query_stats	Query execution statistics (cached plans)
+sys.dm_exec_query_plan(plan_handle)	Shows actual execution plan
+sys.dm_db_index_usage_stats	Index usage, seeks/scans, updates
+sys.dm_db_index_physical_stats	Index fragmentation info
+sys.dm_os_wait_stats	Wait statistics for bottlenecks
+sys.dm_tran_locks	Locks and blocking info
+🔹 3.2 Example 1: Top Resource Consuming Queries
+SELECT TOP 10
+    qs.total_elapsed_time/1000 AS TotalElapsedMS,
+    qs.execution_count,
+    qs.total_worker_time/1000 AS CPU_MS,
+    SUBSTRING(qt.text, (qs.statement_start_offset/2)+1,
+        ((CASE qs.statement_end_offset
+            WHEN -1 THEN DATALENGTH(qt.text)
+            ELSE qs.statement_end_offset
+        END - qs.statement_start_offset)/2)+1) AS QueryText,
+    qp.query_plan
+FROM sys.dm_exec_query_stats qs
+CROSS APPLY sys.dm_exec_sql_text(qs.sql_handle) qt
+CROSS APPLY sys.dm_exec_query_plan(qs.plan_handle) qp
+ORDER BY TotalElapsedMS DESC;
+
+
+Explanation:
+
+Retrieves top 10 long-running queries
+
+Shows CPU, execution count, and execution plan
+
+Ideal for identifying performance bottlenecks
+
+🔹 3.3 Example 2: Index Usage Statistics
+SELECT
+    OBJECT_NAME(s.object_id) AS TableName,
+    i.name AS IndexName,
+    s.user_seeks,
+    s.user_scans,
+    s.user_lookups,
+    s.user_updates
+FROM sys.dm_db_index_usage_stats s
+JOIN sys.indexes i ON i.object_id = s.object_id AND i.index_id = s.index_id
+WHERE database_id = DB_ID()
+ORDER BY user_seeks DESC;
+
+
+Helps identify unused indexes or highly updated indexes
+
+Used to drop unused indexes or rebuild heavily used indexes
+
+🔹 3.4 Example 3: Detect Blocking Sessions
+SELECT 
+    blocking_session_id AS BlockingSPID,
+    session_id AS BlockedSPID,
+    wait_duration_ms,
+    wait_type,
+    resource_description
+FROM sys.dm_exec_requests
+WHERE blocking_session_id <> 0;
+
+
+Identifies blocked and blocking sessions
+
+Useful for deadlock and performance troubleshooting
+
+🔹 3.5 Example 4: Wait Statistics for Bottleneck Analysis
+SELECT TOP 10
+    wait_type,
+    wait_time_ms/1000 AS WaitTimeSec,
+    waiting_tasks_count
+FROM sys.dm_os_wait_stats
+ORDER BY wait_time_ms DESC;
+
+
+Shows where SQL Server spends most time waiting
+
+Example: PAGEIOLATCH_XX → I/O bottleneck, LCK_M_X → locking issue
+
+🔹 4. Profiler + DMVs: Combined Approach
+
+Profiler → capture slow queries / high CPU / deadlocks
+
+DMVs → analyze query stats, index usage, waits
+
+Execution plan → optimize queries, indexes
+
+Maintenance → update statistics, rebuild indexes, adjust queries
+
+Workflow Example:
+
+Profiler identifies query taking 5s.
+
+DMV shows actual CPU/reads and wait type.
+
+Check execution plan → index seek missing → add index or rewrite query.
+
+Rerun query and validate improvement.
+
+🔹 5. Best Practices
+
+Use server-side traces or Extended Events instead of Profiler in production.
+
+Query DMVs regularly to monitor query patterns and wait stats.
+
+Focus on top 10 queries by CPU, IO, duration.
+
+Combine DMVs with Execution Plans for tuning.
+
+Avoid capturing unnecessary events → reduces performance overhead.
+
+Document recurring patterns and solutions for proactive maintenance.
+
+🔹 6. Key Notes for Interviews
+Question	Answer
+What is SQL Profiler used for?	Capture real-time SQL events, trace queries, performance analysis
+What are DMVs?	System views providing internal SQL Server metrics
+Difference between Profiler and DMVs	Profiler → real-time trace, DMV → queryable system state
+Common DMVs for performance	sys.dm_exec_query_stats, sys.dm_exec_requests, sys.dm_os_wait_stats
+How to identify slow queries	Profiler trace + DMV query stats + execution plan analysis
+🔹 7. Summary Table
+Tool	Purpose	Pros	Cons
+SQL Profiler	Capture events, trace slow queries	Real-time, detailed	Can be heavy on production
+DMVs	Query internal metrics	Lightweight, queryable	Only shows current or cached data
+Combined Approach	Troubleshoot & tune	Comprehensive	Requires expertise
+
+✅ In Summary
+
+Profiler → captures query activity in real-time.
+
+DMVs → lightweight, real-time system views for performance analysis.
+
+Combined usage → identify slow queries, index inefficiencies, wait bottlenecks, and optimize SQL Server performance.
+
+Essential for DBAs and developers handling high-performance OLTP and OLAP systems.
