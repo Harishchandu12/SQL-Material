@@ -1,0 +1,310 @@
+📘 Database Triggers 
+
+🔹 1. Definition
+
+A Trigger is a special type of stored procedure that automatically executes (fires) in response to certain database events (such as INSERT, UPDATE, or DELETE) on a table or view.
+
+Triggers are used to enforce business rules, maintain audit trails, and ensure data integrity.
+
+🔹 2. Why Use Triggers
+Purpose	Description
+Data Integrity	Enforce complex rules that can’t be handled by constraints.
+Auditing	Automatically log data changes (who, when, what).
+Cascading Actions	Perform automatic updates/deletes in related tables.
+Validation	Prevent invalid transactions.
+Automation	Execute logic automatically after data changes.
+
+🔹 3. Trigger Basics
+
+Key Points:
+
+Associated with a table or view.
+
+Automatically executes after or instead of a DML statement.
+
+Cannot be called manually like stored procedures.
+
+Have access to pseudo-tables:
+
+INSERTED — contains the new values after an INSERT or UPDATE.
+
+DELETED — contains the old values before an UPDATE or DELETE.
+
+🔹 4. Trigger Syntax (SQL Server)
+CREATE TRIGGER trigger_name
+ON table_name
+AFTER | INSTEAD OF [INSERT, UPDATE, DELETE]
+AS
+BEGIN
+    -- Trigger body
+END;
+
+🔹 5. Types of Triggers
+Type	Description
+AFTER Trigger	Executes after a DML operation completes successfully.
+INSTEAD OF Trigger	Executes instead of the DML operation (overrides it).
+DDL Trigger	Fires on schema-level events (CREATE, ALTER, DROP).
+Logon Trigger	Fires in response to a LOGON event (for security).
+
+In this note, we’ll focus on AFTER and INSTEAD OF triggers.
+
+🔹 6. AFTER Triggers
+🧩 Definition
+
+An AFTER trigger executes after the associated DML operation (INSERT, UPDATE, DELETE) completes successfully.
+
+Note: If the DML fails or is rolled back, the trigger does not fire.
+
+🧩 Example 1 – AFTER INSERT Trigger
+
+Use Case: Log new employee additions to an audit table.
+
+CREATE TRIGGER trg_AfterInsert_Employee
+ON Employees
+AFTER INSERT
+AS
+BEGIN
+    INSERT INTO EmployeeAudit (EmpID, ActionType, ActionDate)
+    SELECT EmpID, 'INSERT', GETDATE()
+    FROM INSERTED;
+END;
+
+
+Explanation:
+
+INSERTED pseudo-table stores the newly inserted rows.
+
+Trigger fires after the record is successfully inserted into Employees.
+
+A corresponding entry is added to EmployeeAudit.
+
+🧩 Example 2 – AFTER UPDATE Trigger
+
+Use Case: Log salary changes.
+
+CREATE TRIGGER trg_AfterUpdate_Salary
+ON Employees
+AFTER UPDATE
+AS
+BEGIN
+    IF UPDATE(Salary)
+    BEGIN
+        INSERT INTO SalaryChangeLog (EmpID, OldSalary, NewSalary, ChangeDate)
+        SELECT d.EmpID, d.Salary, i.Salary, GETDATE()
+        FROM DELETED d
+        JOIN INSERTED i ON d.EmpID = i.EmpID;
+    END;
+END;
+
+
+Explanation:
+
+DELETED holds old values; INSERTED holds new ones.
+
+UPDATE(Salary) checks if the Salary column was modified.
+
+🧩 Example 3 – AFTER DELETE Trigger
+CREATE TRIGGER trg_AfterDelete_Employee
+ON Employees
+AFTER DELETE
+AS
+BEGIN
+    INSERT INTO EmployeeAudit (EmpID, ActionType, ActionDate)
+    SELECT EmpID, 'DELETE', GETDATE()
+    FROM DELETED;
+END;
+
+
+Explanation:
+
+Fired after a delete operation.
+
+The deleted record details are captured from the DELETED pseudo-table.
+
+🔹 7. INSTEAD OF Triggers
+🧩 Definition
+
+An INSTEAD OF trigger executes in place of the DML operation that fires it.
+The original DML operation does not occur automatically.
+
+Common Use Case:
+Used on views to enable INSERT, UPDATE, or DELETE when those actions are not normally allowed.
+
+🧩 Example 1 – INSTEAD OF Trigger on a View
+
+Use Case: Enable insert into a complex view that joins multiple tables.
+
+CREATE VIEW vw_EmployeeDept AS
+SELECT e.EmpID, e.EmpName, d.DeptName, e.DeptID
+FROM Employees e
+JOIN Departments d ON e.DeptID = d.DeptID;
+
+
+Now, to allow inserts into this view:
+
+CREATE TRIGGER trg_InsteadOfInsert_vwEmployeeDept
+ON vw_EmployeeDept
+INSTEAD OF INSERT
+AS
+BEGIN
+    INSERT INTO Employees (EmpName, DeptID)
+    SELECT EmpName, DeptID
+    FROM INSERTED;
+END;
+
+
+Explanation:
+
+Normally, inserting into a joined view fails.
+
+The INSTEAD OF trigger handles the insert into the appropriate base table.
+
+🧩 Example 2 – INSTEAD OF Trigger for Validation
+
+Use Case: Prevent deletion of critical department records.
+
+CREATE TRIGGER trg_InsteadOfDelete_Dept
+ON Departments
+INSTEAD OF DELETE
+AS
+BEGIN
+    IF EXISTS (SELECT 1 FROM DELETED WHERE DeptName = 'Management')
+    BEGIN
+        PRINT 'Deletion of Management department is not allowed.';
+        RETURN;
+    END
+    ELSE
+    BEGIN
+        DELETE FROM Departments
+        WHERE DeptID IN (SELECT DeptID FROM DELETED);
+    END
+END;
+
+
+Explanation:
+
+The trigger intercepts the DELETE statement.
+
+Conditionally allows or denies the delete.
+
+🔹 8. Pseudo-Tables: INSERTED and DELETED
+Operation	INSERTED	DELETED
+INSERT	New rows	—
+UPDATE	New values	Old values
+DELETE	—	Deleted rows
+
+These are logical (temporary) tables available only during trigger execution.
+
+🔹 9. Error Handling in Triggers
+
+Use TRY...CATCH blocks to handle runtime errors gracefully.
+
+CREATE TRIGGER trg_AfterInsert_ErrorHandling
+ON Employees
+AFTER INSERT
+AS
+BEGIN
+    BEGIN TRY
+        INSERT INTO EmployeeAudit (EmpID, ActionType, ActionDate)
+        SELECT EmpID, 'INSERT', GETDATE()
+        FROM INSERTED;
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
+        PRINT 'Trigger Error: ' + @ErrMsg;
+    END CATCH
+END;
+
+🔹 10. Managing Triggers
+Action	Command
+Disable Trigger	DISABLE TRIGGER trigger_name ON table_name;
+Enable Trigger	ENABLE TRIGGER trigger_name ON table_name;
+Drop Trigger	DROP TRIGGER trigger_name;
+View Trigger Definition	sp_helptext 'trigger_name';
+List All Triggers	SELECT * FROM sys.triggers;
+
+🔹 11. Trigger Nesting and Recursion
+
+Triggers can call other triggers indirectly → nesting.
+
+Nested triggers depth in SQL Server defaults to 32.
+
+Recursion can occur if a trigger causes itself to fire again (e.g., updating the same table).
+
+Use:
+
+ALTER DATABASE db_name SET RECURSIVE_TRIGGERS OFF;
+
+
+to prevent recursive firing.
+
+🔹 12. Performance Considerations
+Concern	Description
+Hidden Logic	Triggers execute automatically → can cause unexpected behavior.
+Performance Overhead	Can slow down inserts/updates/deletes if heavy logic is inside.
+Transaction Scope	Triggers execute within the same transaction — if the trigger fails, the entire transaction rolls back.
+Batch Operations	Triggers fire once per statement, not per row — handle multiple-row changes properly.
+Debugging Difficulty	Hard to trace errors — always log actions carefully.
+
+🔹 13. Best Practices
+
+✅ Keep trigger logic short and efficient.
+✅ Avoid using cursors or long-running operations.
+✅ Include error handling (TRY...CATCH).
+✅ Use set-based operations — handle multiple rows from INSERTED/DELETED.
+✅ Document triggers clearly — especially in critical tables.
+✅ Do not rely solely on triggers for business logic — use them for auditing or integrity enforcement.
+✅ Avoid recursive triggers unless explicitly needed.
+✅ Use transaction-safe operations — avoid uncommitted dependencies.
+
+🔹 14. Real-World Use Cases
+Scenario	                                Example
+Auditing                   	Log inserts/updates/deletes to an audit table.
+Data Validation	            Prevent invalid or duplicate entries.
+Cascading Actions	          Delete related records (with caution).
+Enforcing Rules           	Prevent salary drop beyond limits.
+Custom Logging	            Log changes to sensitive columns.
+
+🔹 15. Differences: AFTER vs INSTEAD OF Triggers
+
+Feature	                              AFTER Trigger	                                                   INSTEAD OF Trigger
+Execution Timing	                   After DML completes	                                             Before DML (replaces it)
+Use Case	                        Logging, auditing, cascades	                                       Views, validation, custom logic
+Base Table Change                	DML executes normally                                             	DML is overridden
+Available Tables	                INSERTED, DELETED                                                 	INSERTED, DELETED
+Supported On	                        Tables	                                                        Tables, Views
+Performance	                       Slightly better	                                               Slight overhead due to replacement logic
+
+🔹 16. Interview-Focused Topics
+
+What are triggers and why are they used?
+
+Difference between AFTER and INSTEAD OF triggers.
+
+What are INSERTED and DELETED tables?
+
+How do you prevent recursion in triggers?
+
+How to log data changes using triggers?
+
+Can you have multiple triggers on a table for the same event?
+
+When do triggers affect performance?
+
+How to debug triggers?
+
+Difference between Trigger and Constraint.
+
+What happens if a trigger fails inside a transaction?
+
+🔹 17. Quick Summary Table
+Type	                                     Fires	                 Common Use           	Access Tables	                     Typical Location
+AFTER INSERT	                    After data is inserted     	       Auditing            	INSERTED	                          Table
+AFTER UPDATE                    	After data changes	             Track changes	       INSERTED, DELETED	                   Table
+AFTER DELETE                     	After delete completes	         Deletion logs          	DELETED                          	Table
+INSTEAD OF INSERT	                 Before insert (replaces it)	    Insert via view	      INSERTED	                        View/Table
+INSTEAD OF DELETE                	Before delete (replaces it)	       Validation	        DELETED	                          View/Table
+
+✅ In summary:
+Triggers are automatic, rule-based executors tied to data modifications.
+They are powerful but must be used judiciously for integrity and auditing — not as a substitute for well-designed application logic.
