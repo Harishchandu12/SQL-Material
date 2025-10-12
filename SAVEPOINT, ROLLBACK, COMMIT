@@ -1,0 +1,356 @@
+📘 SAVEPOINT, ROLLBACK, COMMIT 
+🔹 1. Introduction to Transaction Control Language (TCL)
+
+TCL (Transaction Control Language) commands are used to manage transactions in a database and ensure data integrity and consistency.
+
+Common TCL commands:
+
+COMMIT – Save all changes permanently.
+
+ROLLBACK – Undo changes (partially or completely).
+
+SAVEPOINT – Set a point within a transaction to which you can later roll back.
+
+🔹 2. Transaction Overview
+
+A transaction is a logical unit of work consisting of one or more SQL statements that must either succeed completely or fail completely.
+
+A transaction ensures ACID properties:
+
+Atomicity – all or nothing
+
+Consistency – data integrity maintained
+
+Isolation – no interference between concurrent transactions
+
+Durability – committed data persists
+
+🔹 3. COMMIT Command
+🧩 Definition
+
+The COMMIT command makes all the changes made by the current transaction permanent in the database.
+
+Once a COMMIT is executed:
+
+Changes cannot be rolled back.
+
+Locks held by the transaction are released.
+
+Other users can see the changes.
+
+🧩 Syntax
+COMMIT TRANSACTION;
+-- or simply
+COMMIT;
+
+🧩 Example 1 – COMMIT in Explicit Transaction
+BEGIN TRANSACTION;
+
+UPDATE Employees
+SET Salary = Salary + 500
+WHERE EmpID = 101;
+
+COMMIT TRANSACTION;
+
+
+Explanation:
+
+The transaction updates the salary.
+
+After COMMIT, the change becomes permanent.
+
+No rollback is possible afterward.
+
+🧩 Example 2 – COMMIT in Autocommit Mode
+
+By default, most databases operate in autocommit mode —
+each DML statement (INSERT, UPDATE, DELETE) is automatically committed after execution.
+
+UPDATE Employees SET Salary = Salary + 100;
+-- Automatically committed after execution
+
+
+You can disable autocommit (e.g., in Oracle or MySQL) to manage commits manually:
+
+SET AUTOCOMMIT = 0;
+
+✅ Key Points on COMMIT
+
+Makes changes permanent.
+
+Releases locks held by the transaction.
+
+Cannot be undone.
+
+Automatically triggers a new transaction in implicit mode.
+
+🔹 4. ROLLBACK Command
+🧩 Definition
+
+The ROLLBACK command is used to undo changes made by the current transaction.
+
+If no SAVEPOINT is specified → rolls back the entire transaction.
+
+If a SAVEPOINT is specified → rolls back to that specific point, keeping earlier work intact.
+
+🧩 Syntax
+ROLLBACK TRANSACTION;
+-- or
+ROLLBACK TO SAVEPOINT savepoint_name;
+
+🧩 Example 1 – ROLLBACK Entire Transaction
+BEGIN TRANSACTION;
+
+DELETE FROM Orders WHERE OrderDate < '2022-01-01';
+UPDATE Customers SET Status = 'Inactive' WHERE LastOrderDate < '2022-01-01';
+
+ROLLBACK TRANSACTION; -- Undo both operations
+
+
+Explanation:
+
+Both DELETE and UPDATE are undone.
+
+Data returns to its original state.
+
+No changes are committed.
+
+🧩 Example 2 – ROLLBACK with Condition
+BEGIN TRANSACTION;
+
+UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = 101;
+UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = 9999; -- invalid account
+
+IF @@ERROR <> 0
+    ROLLBACK TRANSACTION;
+ELSE
+    COMMIT TRANSACTION;
+
+
+Explanation:
+
+If the second UPDATE fails, both updates are rolled back.
+
+Ensures atomicity — either both succeed or both fail.
+
+✅ Key Points on ROLLBACK
+
+Undoes uncommitted changes.
+
+Restores data to last committed state or a savepoint.
+
+Releases locks held during transaction.
+
+Once committed, rollback cannot undo changes.
+
+🔹 5. SAVEPOINT Command
+🧩 Definition
+
+A SAVEPOINT (also known as a save savepoint or checkpoint) allows you to set a marker within a transaction to which you can later roll back without undoing the entire transaction.
+
+🧩 Syntax
+SAVE TRANSACTION savepoint_name;
+-- or
+SAVEPOINT savepoint_name;  -- Oracle/MySQL
+
+🧩 Example 1 – Using SAVEPOINT with ROLLBACK
+BEGIN TRANSACTION;
+
+INSERT INTO Employees VALUES (201, 'John', 'HR', 60000);
+SAVE TRANSACTION Save1;
+
+UPDATE Employees SET Salary = 65000 WHERE EmpID = 201;
+SAVE TRANSACTION Save2;
+
+DELETE FROM Employees WHERE EmpID = 201;
+
+ROLLBACK TRANSACTION Save2;
+COMMIT TRANSACTION;
+
+
+Explanation:
+
+Save1 → after insert
+
+Save2 → after update
+
+Rolled back to Save2 → the delete is undone
+
+Final commit keeps the updated salary intact.
+
+🧩 Example 2 – SAVEPOINT in Complex Transaction
+BEGIN TRANSACTION;
+
+UPDATE Products SET Price = Price * 1.1 WHERE Category = 'Electronics';
+SAVE TRANSACTION PriceUpdate;
+
+UPDATE Inventory SET Stock = Stock - 5 WHERE ProductID = 1001;
+SAVE TRANSACTION InventoryUpdate;
+
+-- Simulate an error
+ROLLBACK TRANSACTION InventoryUpdate;
+COMMIT TRANSACTION;
+
+
+Result:
+
+Only the inventory change is rolled back.
+
+Price update remains and is committed.
+
+✅ Key Points on SAVEPOINT
+
+Used to partially roll back a transaction.
+
+Allows fine-grained control in large transactions.
+
+Multiple savepoints can exist in one transaction.
+
+When a transaction is committed, all savepoints are automatically released.
+
+Some databases limit the number of savepoints per transaction.
+
+🔹 6. Combining COMMIT, ROLLBACK, SAVEPOINT
+🧩 Example – Full Transaction Workflow
+BEGIN TRANSACTION;
+
+UPDATE Employees SET Salary = Salary + 2000 WHERE DeptID = 10;
+SAVE TRANSACTION Step1;
+
+UPDATE Departments SET Budget = Budget - 2000 WHERE DeptID = 10;
+SAVE TRANSACTION Step2;
+
+DELETE FROM TempAudit WHERE DeptID = 10;
+
+-- Check for errors
+IF @@ERROR <> 0
+BEGIN
+    PRINT 'Error occurred... Rolling back to last successful step.';
+    ROLLBACK TRANSACTION Step2;
+END
+ELSE
+    COMMIT TRANSACTION;
+
+
+Explanation:
+
+Step1: Salary updated.
+
+Step2: Budget updated.
+
+Error check ensures rollback only to Step2 (not full transaction).
+
+Commits remaining valid changes.
+
+🔹 7. Behavior by Database System
+Database	COMMIT	ROLLBACK	SAVEPOINT
+SQL Server	Supported	Supported	SAVE TRANSACTION supported
+Oracle	Supported	Supported	SAVEPOINT supported
+MySQL	Supported	Supported	SAVEPOINT supported (in InnoDB engine)
+PostgreSQL	Supported	Supported	SAVEPOINT supported
+🔹 8. Practical Notes for Developers
+
+✅ Always:
+
+Use transactions for multiple DML operations to maintain integrity.
+
+Use SAVEPOINTS in long or multi-step transactions.
+
+Handle errors gracefully using TRY...CATCH blocks (SQL Server) or exception handling (PL/SQL).
+
+Commit only when all operations are verified.
+
+Rollback immediately on error to release locks.
+
+🧩 Error Handling Example (SQL Server)
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    UPDATE Orders SET Status = 'Shipped' WHERE OrderID = 101;
+    SAVE TRANSACTION ShipUpdate;
+
+    UPDATE Inventory SET Quantity = Quantity - 1 WHERE ProductID = 500;
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION ShipUpdate;
+    PRINT 'Transaction rolled back due to error.';
+END CATCH;
+
+
+Explanation:
+
+Uses TRY...CATCH for controlled rollback.
+
+Prevents data corruption in case of error.
+
+🔹 9. Comparison Table
+Command	Purpose	Rollback Possible	When Used	Example
+COMMIT	Make changes permanent	❌ No	After successful operations	COMMIT TRANSACTION;
+ROLLBACK	Undo changes (full or partial)	✅ Yes	When error occurs	ROLLBACK TRANSACTION;
+SAVEPOINT	Create rollback point	✅ Yes	During long transactions	SAVE TRANSACTION Step1;
+🔹 10. Real-World Example (Bank Transfer Scenario)
+BEGIN TRANSACTION;
+
+UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = 1001;
+SAVE TRANSACTION DebitDone;
+
+UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = 2002;
+
+-- Simulate error
+IF @@ERROR <> 0
+BEGIN
+    PRINT 'Error occurred... Rolling back to Debit stage.';
+    ROLLBACK TRANSACTION DebitDone;
+END
+ELSE
+    COMMIT TRANSACTION;
+
+
+Explanation:
+
+Deducts amount → sets a savepoint.
+
+If credit fails → rolls back to DebitDone, restoring balance.
+
+If all succeed → commit finalizes both changes.
+
+🔹 11. Best Practices
+
+✅ Always:
+
+Use transactions for related DML statements.
+
+Use savepoints to isolate safe checkpoints.
+
+Use try-catch or error handlers.
+
+Avoid keeping transactions open too long (locks other users).
+
+Clearly commit or rollback — never leave transactions unclosed.
+
+🔹 12. Interview / Real-world Q&A
+Question	Answer
+What does COMMIT do?	Makes all changes permanent.
+What does ROLLBACK do?	Undoes uncommitted changes.
+What is SAVEPOINT?	Sets a point in a transaction for partial rollback.
+Can you rollback after a COMMIT?	No, once committed, changes are permanent.
+Can multiple SAVEPOINTS exist in one transaction?	Yes.
+What happens to SAVEPOINTS after COMMIT?	They are released automatically.
+Which command ensures data consistency after errors?	ROLLBACK (to last consistent state).
+How do you handle partial rollbacks?	Use SAVEPOINT and ROLLBACK TO SAVEPOINT.
+🔹 13. Quick Summary Table
+Command	Action	Rollback Possible	Locks Released	Visibility to Others
+COMMIT	Save permanently	❌ No	✅ Yes	✅ Yes
+ROLLBACK	Undo transaction	✅ Yes	✅ Yes	❌ No
+SAVEPOINT	Set rollback checkpoint	✅ Yes (until commit)	❌ No	❌ No
+
+✅ In summary:
+
+COMMIT finalizes all changes.
+
+ROLLBACK reverts changes to the last commit or savepoint.
+
+SAVEPOINT lets you roll back part of a transaction without affecting the rest.
+
+Together, they form the foundation of robust transaction management and data integrity in relational databases.
