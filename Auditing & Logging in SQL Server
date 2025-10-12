@@ -1,0 +1,257 @@
+📘 Auditing & Logging in SQL Server
+🔹 1. What is Auditing?
+
+Auditing in SQL Server is the process of tracking and recording database events — such as:
+
+Who accessed the database
+
+What operations were performed (SELECT, INSERT, UPDATE, DELETE)
+
+When and from where the actions occurred
+
+Whether access was successful or failed
+
+✅ Goal:
+To maintain accountability, traceability, and compliance.
+
+🔹 2. Why is Auditing Important?
+Purpose	Description
+Security Monitoring	Detect unauthorized access or malicious activity
+Compliance	Required by laws/regulations (HIPAA, GDPR, PCI DSS, SOX)
+Troubleshooting	Identify who changed what and when
+Performance Insight	Monitor activity patterns
+Forensics	Investigate incidents or breaches
+🔹 3. SQL Server Auditing Options
+
+SQL Server offers multiple levels of auditing and logging:
+
+Level	Feature	Scope
+Server-level	SQL Server Audit (server audit)	Whole instance
+Database-level	SQL Server Audit (database audit specification)	Specific database
+Application-level	Triggers, custom tables, or logging frameworks	Application-specific events
+Login-level	C2 Audit / Login auditing	Success/failure login attempts
+Transaction-level	Change Data Capture (CDC) / Change Tracking	Data modification tracking
+🔹 4. SQL Server Audit (Recommended Modern Method)
+
+Introduced in SQL Server 2008, SQL Server Audit provides a native, flexible, and secure way to log and monitor database activity.
+
+It uses:
+
+Audit Object → Defines where audit logs are stored.
+
+Audit Specification → Defines what to audit.
+
+🧩 Architecture Overview
+Audit (Server Audit)
+   ├── Server Audit Specification (instance-level events)
+   └── Database Audit Specification (database-level events)
+
+🔹 5. Components of SQL Server Audit
+Component	Description
+Server Audit	Defines the destination for audit logs (file, event log, or security log).
+Server Audit Specification	Captures instance-level actions (e.g., login changes, role assignments).
+Database Audit Specification	Captures database-level actions (e.g., table access, DML changes).
+🔹 6. Step-by-Step Example: SQL Server Audit Setup
+🎯 Goal:
+
+Audit all SELECT and DELETE operations on Employees table in HRDB.
+
+Step 1️⃣: Create an Audit Object
+CREATE SERVER AUDIT Audit_HRDB
+TO FILE (FILEPATH = 'C:\SQLAuditLogs\')
+WITH (ON_FAILURE = CONTINUE);
+GO
+
+
+✅ This defines where the audit data will be saved.
+
+Step 2️⃣: Enable the Audit
+ALTER SERVER AUDIT Audit_HRDB WITH (STATE = ON);
+GO
+
+Step 3️⃣: Create a Database Audit Specification
+USE HRDB;
+GO
+CREATE DATABASE AUDIT SPECIFICATION Audit_HRDB_Activity
+FOR SERVER AUDIT Audit_HRDB
+ADD (SELECT ON dbo.Employees BY [public]),
+ADD (DELETE ON dbo.Employees BY [public])
+WITH (STATE = ON);
+GO
+
+
+✅ This means:
+
+Every SELECT or DELETE on dbo.Employees by any user will be logged to the audit file.
+
+Step 4️⃣: Test the Audit
+SELECT * FROM Employees;
+DELETE FROM Employees WHERE EmpID = 101;
+
+Step 5️⃣: View Audit Logs
+
+Use the built-in function:
+
+SELECT *
+FROM sys.fn_get_audit_file ('C:\SQLAuditLogs\*.sqlaudit', DEFAULT, DEFAULT);
+
+
+🧾 Sample Output:
+
+action_id	statement	succeeded	server_principal_name	database_name	object_name	event_time
+SL	SELECT * FROM Employees	1	JohnUser	HRDB	Employees	2025-10-12 10:30
+DL	DELETE FROM Employees	1	JohnUser	HRDB	Employees	2025-10-12 10:31
+🔹 7. Audit Targets (Destinations)
+Target	Description
+File	Writes audit logs to a physical file (most common)
+Windows Application Log	Visible in Event Viewer (for integration with SIEM tools)
+Windows Security Log	For high-security auditing (requires sysadmin rights)
+🔹 8. Managing SQL Server Audits
+Enable/Disable Audit
+ALTER SERVER AUDIT Audit_HRDB WITH (STATE = OFF);
+ALTER SERVER AUDIT Audit_HRDB WITH (STATE = ON);
+
+Drop Audit
+DROP DATABASE AUDIT SPECIFICATION Audit_HRDB_Activity;
+DROP SERVER AUDIT Audit_HRDB;
+
+View Audit Configurations
+SELECT * FROM sys.server_audits;
+SELECT * FROM sys.server_audit_specifications;
+SELECT * FROM sys.database_audit_specifications;
+
+🔹 9. Other Auditing & Logging Methods
+1️⃣ Login Auditing (Basic Security Auditing)
+
+Tracks login success/failure attempts.
+
+-- Enable login auditing for failed and successful logins
+EXEC xp_instance_regwrite
+    N'HKEY_LOCAL_MACHINE',
+    N'Software\Microsoft\MSSQLServer\MSSQLServer',
+    N'AuditLevel',
+    REG_DWORD,
+    3;
+
+
+AuditLevel values:
+
+Value	Description
+0	None
+1	Successful logins
+2	Failed logins
+3	Both success and failure
+
+View in SQL Server Error Log.
+
+2️⃣ Change Data Capture (CDC)
+
+Tracks row-level changes (INSERT, UPDATE, DELETE) for auditing and ETL.
+
+EXEC sys.sp_cdc_enable_db;  
+EXEC sys.sp_cdc_enable_table  
+    @source_schema = 'dbo',
+    @source_name   = 'Employees',
+    @role_name     = NULL;
+
+
+View changes:
+
+SELECT * FROM cdc.dbo_Employees_CT;
+
+3️⃣ Change Tracking (CT)
+
+Tracks which rows changed (not the actual data) — lightweight alternative to CDC.
+
+ALTER DATABASE HRDB
+SET CHANGE_TRACKING = ON
+(CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON);
+
+4️⃣ DML Triggers for Custom Auditing
+
+Create triggers to log DML activity into a separate audit table.
+
+CREATE TABLE AuditLog (
+    AuditID INT IDENTITY PRIMARY KEY,
+    UserName NVARCHAR(100),
+    Action NVARCHAR(50),
+    TableName NVARCHAR(50),
+    ChangeTime DATETIME DEFAULT GETDATE()
+);
+GO
+
+CREATE TRIGGER trg_Employees_Audit
+ON Employees
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    INSERT INTO AuditLog (UserName, Action, TableName)
+    VALUES (SUSER_SNAME(), 'DML Operation', 'Employees');
+END;
+GO
+
+
+✅ Used for application-specific or business-level auditing.
+
+🔹 10. Comparison of Auditing Techniques
+Method	Level	What It Tracks	Overhead	Recommended For
+SQL Server Audit	Server/DB	Logins, schema, and data access	Low	Security & compliance
+Login Auditing	Instance	Login attempts	Low	Access control monitoring
+CDC	Table	Data value changes	Medium	ETL, data warehousing
+CT	Table	Change detection (no values)	Low	Synchronization
+DML Triggers	Table	Custom operations	Medium–High	Application auditing
+🔹 11. Auditing Best Practices
+Area	Best Practice
+Scope	Audit only necessary actions (avoid full DB auditing to reduce overhead)
+Storage	Store audit logs on separate disks or servers
+Security	Protect audit logs — limit access to admins only
+Monitoring	Regularly review audit logs for anomalies
+Automation	Use alerts (SQL Agent or SIEM) for suspicious activity
+Retention	Implement log rotation and archive policies
+Compliance	Align auditing configuration with organizational policies (GDPR, SOX, etc.)
+🔹 12. Real-World Example: Compliance Auditing
+
+Requirement:
+
+Track who reads or modifies Customer data in a financial database.
+
+Retain logs for 90 days.
+
+Implementation Plan:
+
+Create a server audit and file destination (C:\Audits\).
+
+Create a database audit specification for SELECT, INSERT, UPDATE, DELETE on Customer.
+
+Schedule SQL Agent job to:
+
+Export logs daily to archive
+
+Purge files older than 90 days
+
+Use SIEM tool (Splunk / Azure Sentinel) to analyze logs.
+
+🔹 13. View Audit Events via SSMS
+
+You can also view audit logs graphically:
+
+SSMS → Security → Audits → View Audit Logs
+
+Filter by user, date, database, or event type.
+
+✅ Quick Summary Table
+Concept	Description	Example
+Audit	Logs access and changes in SQL Server	CREATE SERVER AUDIT ...
+Audit Specification	Defines what events to audit	CREATE DATABASE AUDIT SPECIFICATION ...
+Audit Target	Destination for logs (file/event/security log)	TO FILE (FILEPATH = 'C:\Logs\')
+DML Trigger	Custom logging logic in app tables	AFTER INSERT, UPDATE, DELETE
+CDC/CT	Track row-level changes	sp_cdc_enable_table
+Login Auditing	Capture login attempts	AuditLevel registry setting
+🧠 Interview Tip
+
+💬 What’s the difference between Change Data Capture and SQL Server Audit?
+👉 Answer:
+
+CDC tracks data value changes in tables (for ETL/sync).
+
+Audit tracks who performed what actions (for security & compliance).
