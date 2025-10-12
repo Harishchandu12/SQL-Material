@@ -1,0 +1,266 @@
+📘 Authorization in SQL Server: Users, Roles, and Permissions
+🔹 1. What is Authorization?
+
+Authorization is the process of determining what a user can do after they have been authenticated.
+
+Authentication → Confirms who the user is.
+
+Authorization → Defines what the user is allowed to do.
+
+✅ Example:
+
+John (authenticated user) may have permission to read data from a table,
+but not to delete or alter it.
+
+In SQL Server, authorization is managed through:
+
+Users
+
+Roles
+
+Permissions
+
+🔹 2. Security Hierarchy in SQL Server
+LOGIN  →  USER  →  ROLE  →  PERMISSION
+
+Level	Description
+Login	Server-level identity for connecting to SQL Server.
+User	Database-level identity mapped to a login.
+Role	Group of users with predefined or custom permissions.
+Permission	Specific right to perform an action (SELECT, INSERT, etc.).
+🔹 3. Logins vs Users
+Concept	Description
+Login	Exists at server level; allows connecting to SQL Server.
+User	Exists at database level; controls what actions are allowed.
+Mapping	A login must be mapped to a user inside a database.
+🧩 Example
+-- 1. Create a login (server-level)
+CREATE LOGIN JohnLogin WITH PASSWORD = 'P@ssword123';
+
+-- 2. Create a user mapped to that login in a specific database
+USE SalesDB;
+CREATE USER JohnUser FOR LOGIN JohnLogin;
+
+
+Now, JohnUser exists in SalesDB and inherits permissions assigned at the database level.
+
+🔹 4. Users in SQL Server
+
+A user is a database principal that defines a specific identity within a database.
+
+Types of Users
+Type	Description
+Mapped user	Linked to a login (Windows or SQL).
+Contained database user	Exists only in the database; not tied to a server login (used in contained databases).
+Guest user	Allows logins without specific user mapping (should usually be disabled).
+Application role	Used by apps with fixed permissions during a session.
+🧩 Example: Creating a User
+USE HRDB;
+CREATE USER HRUser FOR LOGIN HRLogin;
+
+
+Grant permissions to this user:
+
+GRANT SELECT, INSERT ON Employees TO HRUser;
+
+🔹 5. Roles in SQL Server
+✅ Definition
+
+A role is a container (group) of permissions that can be assigned to users.
+
+Roles simplify security management by grouping permissions logically.
+
+Instead of assigning permissions to individual users → assign them to roles.
+
+📘 Types of Roles
+Level	Type	Description
+Server-Level Roles	Fixed Server Roles	Manage server-wide operations
+Database-Level Roles	Fixed Database Roles	Manage database-level operations
+	User-Defined Roles	Custom roles created by DBAs
+🔸 Fixed Server Roles
+Role	Description
+sysadmin	Full control of SQL Server (superuser)
+serveradmin	Manage server configuration and shutdown
+securityadmin	Manage logins, permissions
+dbcreator	Create, alter, drop databases
+diskadmin	Manage disk files
+processadmin	Manage SQL Server processes
+setupadmin	Manage linked servers and replication
+bulkadmin	Perform BULK INSERT operations
+
+✅ Example:
+
+-- Add login to sysadmin role
+ALTER SERVER ROLE sysadmin ADD MEMBER JohnLogin;
+
+🔸 Fixed Database Roles
+Role	Description
+db_owner	Full control of database
+db_datareader	Read all data in user tables/views
+db_datawriter	Modify all data (INSERT, UPDATE, DELETE)
+db_ddladmin	Run any DDL statements (CREATE, ALTER, DROP)
+db_securityadmin	Manage database roles and permissions
+db_backupoperator	Can back up the database
+db_denydatareader	Cannot read any data
+db_denydatawriter	Cannot modify any data
+
+✅ Example:
+
+-- Add user to database reader role
+ALTER ROLE db_datareader ADD MEMBER HRUser;
+
+🔸 User-Defined Roles
+
+You can create your own custom roles tailored to business needs.
+
+🧩 Example:
+
+-- Create a custom role
+CREATE ROLE SalesAnalyst;
+
+-- Grant permissions to the role
+GRANT SELECT ON Sales TO SalesAnalyst;
+GRANT EXECUTE ON usp_GetSalesReport TO SalesAnalyst;
+
+-- Add user to the role
+ALTER ROLE SalesAnalyst ADD MEMBER JohnUser;
+
+
+Now, JohnUser has all permissions assigned to SalesAnalyst.
+
+🔹 6. Permissions
+✅ Definition
+
+A permission is a right to perform an action on a securable object.
+
+Securables include:
+
+Server-level: logins, endpoints, databases
+
+Database-level: tables, views, procedures, schemas, etc.
+
+🔸 Common Permission Types
+Action	Scope
+SELECT	Read data from a table or view
+INSERT	Add new rows
+UPDATE	Modify existing rows
+DELETE	Remove rows
+EXECUTE	Run stored procedures or functions
+ALTER	Modify structure
+CONTROL	Full control over an object
+VIEW DEFINITION	View metadata (like table schema)
+🧩 Examples: Granting / Denying Permissions
+-- Grant SELECT on table
+GRANT SELECT ON Employees TO HRUser;
+
+-- Grant EXECUTE on stored procedure
+GRANT EXECUTE ON usp_GetEmployeeList TO HRUser;
+
+-- Revoke permission (remove grant/deny)
+REVOKE SELECT ON Employees FROM HRUser;
+
+-- Explicitly deny permission
+DENY DELETE ON Employees TO HRUser;
+
+
+🧠 Note:
+DENY overrides GRANT — if a user is denied, they can’t access even if part of a granted role.
+
+🔹 7. Securable Levels in SQL Server
+
+SQL Server has a hierarchical security model:
+
+Server
+ ├── Database
+      ├── Schema
+           ├── Table / View / Procedure
+
+
+Permissions can be granted at any level.
+
+Example:
+
+GRANT SELECT ON SCHEMA::Sales TO SalesAnalyst;
+
+
+→ Grants SELECT on all tables and views in the Sales schema.
+
+🔹 8. Authorization Best Practices
+Recommendation	Description
+Use roles, not users	Grant permissions to roles, then assign users to roles.
+Least privilege principle	Give only necessary permissions.
+Avoid sysadmin/db_owner	Restrict to DBAs only.
+Review permissions periodically	Clean up unused users and roles.
+Use schemas for logical grouping	Assign permissions at schema level when possible.
+Avoid guest user	Disable it to prevent unauthorized access.
+🔹 9. Real-World Example Scenario
+
+Business Requirement:
+
+HR team should view employees.
+
+Managers should view & update employee records.
+
+Admins should have full control.
+
+Step 1: Create Users
+CREATE LOGIN HRLogin WITH PASSWORD = 'Hr@123';
+CREATE LOGIN ManagerLogin WITH PASSWORD = 'Mgr@123';
+CREATE LOGIN AdminLogin WITH PASSWORD = 'Adm@123';
+
+USE HRDB;
+CREATE USER HRUser FOR LOGIN HRLogin;
+CREATE USER ManagerUser FOR LOGIN ManagerLogin;
+CREATE USER AdminUser FOR LOGIN AdminLogin;
+
+Step 2: Create Roles
+CREATE ROLE HRReader;
+CREATE ROLE HRManager;
+CREATE ROLE HRAdmin;
+
+Step 3: Grant Role Permissions
+GRANT SELECT ON Employees TO HRReader;
+GRANT SELECT, UPDATE ON Employees TO HRManager;
+GRANT CONTROL ON DATABASE::HRDB TO HRAdmin;
+
+Step 4: Assign Users to Roles
+ALTER ROLE HRReader ADD MEMBER HRUser;
+ALTER ROLE HRManager ADD MEMBER ManagerUser;
+ALTER ROLE HRAdmin ADD MEMBER AdminUser;
+
+
+✅ Result:
+
+HRUser → Can read employee data only.
+
+ManagerUser → Can read & update data.
+
+AdminUser → Full control over HRDB.
+
+🔹 10. Verification Commands
+
+You can check permissions or memberships:
+
+-- Check user roles
+EXEC sp_helprolemember 'HRReader';
+
+-- Check all roles in database
+SELECT * FROM sys.database_principals WHERE type = 'R';
+
+-- Check specific user permissions
+EXECUTE AS USER = 'HRUser';
+SELECT HAS_PERMS_BY_NAME('Employees', 'OBJECT', 'SELECT');
+REVERT;
+
+✅ In Summary
+Concept	Description	Example
+Login	Server-level identity to connect	CREATE LOGIN JohnLogin WITH PASSWORD='...'
+User	Database-level identity	CREATE USER JohnUser FOR LOGIN JohnLogin;
+Role	Group of permissions	CREATE ROLE SalesAnalyst;
+Permission	Specific right to perform action	GRANT SELECT ON Sales TO SalesAnalyst;
+Best Practice	Assign permissions to roles, not individual users	ALTER ROLE SalesAnalyst ADD MEMBER JohnUser;
+🧠 Rule of Thumb
+
+Grant permissions to roles, not directly to users.
+
+Keep access “Least Privileged” – give users only what they need to do their job.
