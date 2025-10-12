@@ -1,0 +1,248 @@
+📘 Statistics in SQL Server and Their Role in Query Performance
+
+🔹 1. Introduction
+
+Statistics in SQL Server are objects that store information about the distribution of data in a table or indexed view.
+
+SQL Server uses statistics to optimize query execution plans.
+
+They help the query optimizer decide:
+
+Which index to use
+
+Join types (Nested Loops, Hash Join, Merge Join)
+
+Order of operations
+
+Whether to use parallel execution
+
+Without accurate statistics → suboptimal query plans → poor performance.
+
+🔹 2. What Are Statistics?
+🧩 Definition
+
+Statistics are histograms and density information about column values that help SQL Server estimate row counts and selectivity.
+
+Selectivity → fraction of rows matching a predicate
+
+High selectivity → fewer rows → efficient index usage
+
+Low selectivity → many rows → may scan the table instead
+
+🔹 2.1 Types of Statistics
+Type	Description	Example
+Automatic Statistics	Created automatically on columns with indexes or when AUTO_CREATE_STATISTICS = ON	Index on EmployeeID automatically creates stats on EmployeeID
+Manual / User-Created Statistics	Explicitly created using CREATE STATISTICS	CREATE STATISTICS Stats_Salary ON Employees(Salary)
+Filtered Statistics	Created on a subset of rows using WHERE clause	CREATE STATISTICS Stats_ActiveEmployees ON Employees(Salary) WHERE IsActive = 1
+🔹 2.2 Components of Statistics
+
+Histogram
+
+Distribution of values in the first column of the statistics object
+
+200 steps max → approximate distribution
+
+Density vector
+
+Provides selectivity of combinations of columns in multi-column statistics
+
+String summary (for varchar/nvarchar)
+
+Helps estimate string patterns
+
+🔹 3. Role of Statistics in Query Performance
+🧩 How SQL Server Uses Statistics
+
+SQL Server optimizer estimates number of rows for query predicates using stats.
+
+Determines best execution plan:
+
+Index Seek vs Table Scan
+
+Join order and join type
+
+Parallelism
+
+Accurate row estimation → efficient plan → better performance
+
+Outdated statistics → wrong row estimates → slow queries
+
+🔹 3.1 Example of Impact
+-- Table with millions of rows
+SELECT * FROM Employees WHERE Salary = 100000;
+
+
+Accurate statistics → optimizer uses Index Seek
+
+Outdated statistics → optimizer may choose Clustered Index Scan → slower query
+
+🔹 4. Automatic vs Manual Statistics
+🔹 4.1 Automatic Statistics
+
+Created for columns in indexes or query predicates (if AUTO_CREATE_STATISTICS = ON)
+
+Updated automatically if row modification threshold is exceeded:
+
+For < 500 rows → update at 500 rows modified
+
+For > 500 rows → update at 20% + 500 rows modified
+
+Check automatic statistics:
+
+SELECT name, is_auto_created, is_auto_updated
+FROM sys.stats
+WHERE object_id = OBJECT_ID('Employees');
+
+🔹 4.2 Manual Statistics
+
+Useful for columns used in queries but not indexed
+
+CREATE STATISTICS Stats_Salary
+ON Employees(Salary);
+
+
+Can be updated manually:
+
+UPDATE STATISTICS Employees Stats_Salary WITH FULLSCAN;
+
+🔹 5. Filtered Statistics
+
+Created on subset of rows to improve estimation for frequent queries.
+
+CREATE STATISTICS Stats_ActiveEmployees
+ON Employees(Salary)
+WHERE IsActive = 1;
+
+
+Use case: Queries often filter IsActive = 1.
+
+🔹 6. Viewing Statistics
+-- View all statistics on a table
+DBCC SHOW_STATISTICS ('Employees', Stats_Salary);
+
+
+Output contains:
+
+Header → name, update date, number of rows, modification counter
+
+Density vector → selectivity
+
+Histogram → distribution of column values
+
+🔹 7. Updating Statistics
+🔹 7.1 Automatic Update
+
+AUTO_UPDATE_STATISTICS = ON (default)
+
+Triggered when threshold of changes exceeded
+
+🔹 7.2 Manual Update
+-- Full scan update
+UPDATE STATISTICS Employees Stats_Salary WITH FULLSCAN;
+
+-- Sample scan update
+UPDATE STATISTICS Employees Stats_Salary WITH SAMPLE 50 PERCENT;
+
+
+Note: FULLSCAN = most accurate, more costly; SAMPLE = faster, slightly less accurate.
+
+🔹 8. Statistics vs Indexes
+Aspect	Statistics	Index
+Purpose	Help optimizer estimate row counts	Improve physical data access
+Columns	Can exist on non-indexed columns	Requires index key columns
+Automatic	Yes	Yes (for indexes)
+Impact	Execution plan	Query performance directly
+Maintenance	UPDATE STATISTICS	REBUILD / REORGANIZE index
+🔹 9. Statistics Maintenance Best Practices
+Best Practice	Recommendation
+Keep statistics up-to-date	AUTO_UPDATE_STATISTICS ON, manually update before heavy reporting
+Use FULLSCAN for large critical tables	Provides accurate estimation
+Create manual or filtered statistics	For non-indexed frequently queried columns
+Monitor stale statistics	Use sys.dm_db_stats_properties and row modification counters
+Combine with index maintenance	Rebuild indexes often updates statistics automatically
+Use trace flag 2371 (SQL Server)	Adjust auto-update threshold for large tables
+🔹 10. Real-World Example
+Scenario:
+
+Table: Orders(OrderID, CustomerID, OrderDate, TotalAmount)
+
+Query often filters recent orders
+
+Without statistics → table scan → slow
+
+Create statistics:
+
+CREATE STATISTICS Stats_RecentOrders
+ON Orders(OrderDate)
+WHERE OrderDate >= '2024-01-01';
+
+-- Update statistics
+UPDATE STATISTICS Orders Stats_RecentOrders WITH FULLSCAN;
+
+
+Query:
+
+SELECT OrderID, TotalAmount
+FROM Orders
+WHERE OrderDate >= '2024-01-01';
+
+
+Result: Optimizer uses filtered statistics → accurate row estimate → index seek or partition elimination → faster query.
+
+🔹 11. Monitoring Statistics Usage
+SELECT
+    object_name(s.object_id) AS TableName,
+    s.name AS StatsName,
+    sp.last_updated,
+    sp.rows,
+    sp.rows_sampled,
+    sp.steps
+FROM sys.stats AS s
+JOIN sys.dm_db_stats_properties(s.object_id, s.stats_id) AS sp
+ON 1=1
+WHERE object_name(s.object_id) = 'Employees';
+
+
+Shows when statistics were last updated
+
+Helps identify stale statistics
+
+🔹 12. Impact of Outdated Statistics
+Scenario	Impact
+Large table, outdated statistics	Optimizer may choose table scan instead of index seek
+High cardinality column	Query may return wrong estimated rows → wrong join type
+Skewed data	Poor execution plan if histogram outdated
+🔹 13. Automatic vs Manual Recommendations
+
+AUTO_CREATE_STATISTICS = ON → good for ad hoc queries
+
+AUTO_UPDATE_STATISTICS = ON → good for general use
+
+Manual / filtered statistics → for critical queries or non-indexed columns
+
+🔹 14. Quick Summary Table
+Concept	Purpose	Command / Example
+Statistics	Estimate row counts, distribution	CREATE STATISTICS Stats_Salary ON Employees(Salary)
+Histogram	Shows distribution of values	DBCC SHOW_STATISTICS
+Density	Estimates selectivity of columns	DBCC SHOW_STATISTICS
+Automatic statistics	Created & updated automatically	AUTO_CREATE_STATISTICS, AUTO_UPDATE_STATISTICS
+Manual statistics	User-created, controlled updates	UPDATE STATISTICS Employees Stats_Salary WITH FULLSCAN
+Filtered statistics	On subset of rows	WHERE IsActive = 1
+🔹 15. Interview / Production Q&A
+Question	Answer
+What are statistics?	Data distribution info used by optimizer
+Why are statistics important?	Help query optimizer generate efficient execution plan
+Difference between statistics & index	Statistics help estimation, index helps data access
+How to check statistics on table?	DBCC SHOW_STATISTICS('Table', 'StatsName')
+How to update statistics?	UPDATE STATISTICS Table StatsName WITH FULLSCAN
+What are filtered statistics?	Statistics on a subset of rows to improve estimation
+
+✅ In Summary
+
+Statistics are critical for SQL Server query performance.
+
+They help the optimizer choose the best plan by estimating row counts and selectivity.
+
+Stale or missing statistics → poor performance.
+
+Combine automatic, manual, and filtered statistics with index maintenance for optimal performance.
