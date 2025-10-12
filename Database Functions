@@ -1,0 +1,274 @@
+🔹 1. Definition
+
+A Function is a database object that performs a specific task and returns a value.
+It is similar to a Stored Procedure, but with key differences:
+
+Must return a value.
+
+Cannot modify database state (i.e., no INSERT/UPDATE/DELETE on tables).
+
+Can be used within SQL statements (e.g., SELECT, WHERE, etc.).
+
+🔹 2. Why Use Functions
+Advantage	Description
+Reusability	Encapsulate frequently used business logic.
+Modularity	Break down complex logic into reusable pieces.
+Consistency	Enforce consistent calculations or rules.
+Security	Restrict direct table access by exposing functions.
+Performance	Reduce repetition and improve maintainability.
+
+🔹 3. Types of Functions in SQL Server
+Type	Description
+Scalar Function	Returns a single value (e.g., number, string, date).
+Table-Valued Function (TVF)	Returns a table. Can be Inline or Multi-Statement.
+System Functions	Built-in functions provided by the DBMS (GETDATE(), LEN(), etc.).
+Aggregate Functions	Operate on sets (SUM(), AVG(), MAX(), etc.).
+
+🔹 4. Syntax Overview
+Creating a User-Defined Function
+CREATE FUNCTION function_name (@param1 datatype, @param2 datatype)
+RETURNS return_datatype
+AS
+BEGIN
+    -- Function body
+    RETURN value;
+END;
+
+Calling a Function
+SELECT dbo.function_name(parameters);
+
+🔹 5. Scalar Functions
+
+Definition:
+A Scalar Function returns a single value (e.g., integer, decimal, string, date).
+
+Example 1 – Simple Scalar Function
+
+CREATE FUNCTION dbo.ufn_GetFullName
+(
+    @FirstName NVARCHAR(50),
+    @LastName NVARCHAR(50)
+)
+RETURNS NVARCHAR(101)
+AS
+BEGIN
+    RETURN RTRIM(@FirstName) + ' ' + RTRIM(@LastName);
+END;
+
+
+Usage:
+
+SELECT dbo.ufn_GetFullName('John', 'Doe') AS FullName;
+
+
+Example 2 – Scalar Function with Business Logic
+
+CREATE FUNCTION dbo.ufn_CalculateBonus(@Salary DECIMAL(10,2))
+RETURNS DECIMAL(10,2)
+AS
+BEGIN
+    DECLARE @Bonus DECIMAL(10,2);
+    SET @Bonus = @Salary * 0.10;
+    RETURN @Bonus;
+END;
+
+
+Usage in Query:
+
+SELECT EmpName, Salary, dbo.ufn_CalculateBonus(Salary) AS Bonus
+FROM Employees;
+
+🔹 6. Table-Valued Functions (TVFs)
+
+Definition:
+A function that returns a table instead of a single value.
+
+Two types:
+
+Inline Table-Valued Function (iTVF)
+
+Multi-Statement Table-Valued Function (mTVF)
+
+🟢 (A) Inline Table-Valued Function (iTVF)
+
+Definition:
+
+Returns a table directly from a single SELECT statement.
+
+Functions like a parameterized view.
+
+Best for performance (because it’s optimized like a view).
+
+Syntax:
+
+CREATE FUNCTION dbo.ufn_GetEmployeesByDept(@DeptID INT)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT EmpID, EmpName, Salary
+    FROM Employees
+    WHERE DeptID = @DeptID
+);
+
+
+Usage:
+
+SELECT * FROM dbo.ufn_GetEmployeesByDept(3);
+
+
+✅ Advantages:
+
+High performance.
+
+Optimized by the query optimizer (can use indexes).
+
+Simpler and faster than multi-statement functions.
+
+🟣 (B) Multi-Statement Table-Valued Function (mTVF)
+
+Definition:
+
+Can contain multiple SQL statements.
+
+Data is inserted into a table variable, which is returned at the end.
+
+Syntax:
+
+CREATE FUNCTION dbo.ufn_GetHighEarnersByDept(@DeptID INT)
+RETURNS @Result TABLE
+(
+    EmpID INT,
+    EmpName NVARCHAR(50),
+    Salary DECIMAL(10,2)
+)
+AS
+BEGIN
+    INSERT INTO @Result
+    SELECT EmpID, EmpName, Salary
+    FROM Employees
+    WHERE DeptID = @DeptID AND Salary > 60000;
+
+    RETURN;
+END;
+
+
+Usage:
+
+SELECT * FROM dbo.ufn_GetHighEarnersByDept(2);
+
+
+Notes:
+
+Offers flexibility (multiple statements, conditional logic).
+
+Usually slower than inline functions (no query plan optimization).
+
+🔹 7. Comparison: Inline vs Multi-Statement TVF
+Feature	Inline TVF	Multi-Statement TVF
+Return Type	Single SELECT result	Table variable
+Performance	High (optimizer inlines it)	Slower (no statistics)
+Complex Logic	Limited	Supports procedural logic
+Indexing	Can use indexes on source tables	Cannot use indexes on table variable
+Optimization	Fully optimized	Limited optimization
+Use Case	Simple queries	Complex transformations, conditions
+🔹 8. System Functions (for context)
+Category	Examples
+String	LEN(), SUBSTRING(), UPPER(), LOWER()
+Date/Time	GETDATE(), DATEADD(), DATEDIFF()
+Math	ABS(), ROUND(), POWER(), SQRT()
+Conversion	CAST(), CONVERT()
+Metadata	DB_NAME(), OBJECT_NAME()
+🔹 9. Differences Between Functions and Stored Procedures
+Aspect	Function	Stored Procedure
+Return Value	Must return a value (scalar/table)	May or may not return values
+Execution	Can be used inside SQL queries	Executed via EXEC or CALL
+Transactions	Cannot start/commit/rollback	Can handle transactions
+Data Modification	Cannot modify table data (except inline table functions in some cases)	Can perform DML operations
+Error Handling	Limited (no TRY...CATCH)	Full TRY...CATCH support
+Usage in SELECT	✅ Allowed	❌ Not allowed
+Performance	Generally faster for computation	Better for procedural logic
+Compilation	Compiled and cached	Compiled once and cached
+
+🔹 10. Error Handling in Functions
+
+Functions in SQL Server cannot use TRY…CATCH.
+
+Use conditional checks and RETURN NULL or default values.
+
+Example:
+
+CREATE FUNCTION dbo.ufn_SafeDivide(@Num FLOAT, @Den FLOAT)
+RETURNS FLOAT
+AS
+BEGIN
+    RETURN (CASE WHEN @Den = 0 THEN NULL ELSE @Num / @Den END);
+END;
+
+
+Usage:
+
+SELECT dbo.ufn_SafeDivide(10, 0) AS Result;  -- Returns NULL
+
+🔹 11. Modifying and Dropping Functions
+
+Modify:
+
+ALTER FUNCTION dbo.ufn_GetFullName(@First NVARCHAR(50), @Last NVARCHAR(50))
+RETURNS NVARCHAR(100)
+AS
+BEGIN
+    RETURN CONCAT(@First, ' ', @Last);
+END;
+
+
+Drop:
+
+DROP FUNCTION dbo.ufn_GetFullName;
+
+🔹 12. Performance Considerations
+Aspect	Recommendation
+Inline TVF	Prefer over multi-statement TVF for performance.
+Avoid Row-by-Row	Functions inside SELECTs (scalar) can cause performance issues.
+Statistics	Multi-statement TVFs don’t maintain statistics → poor optimization.
+Index Usage	Inline TVFs can leverage indexes; table variables can’t.
+Caching	Scalar UDFs can be expensive — consider inline equivalents.
+
+🔹 13. Best Practices
+
+✅ Use inline TVFs whenever possible.
+✅ Avoid using scalar functions inside large queries — they can become performance bottlenecks.
+✅ Always schema-qualify function names (e.g., dbo.ufn_...).
+✅ Use deterministic logic (same input → same output).
+✅ Comment your code — explain complex logic.
+✅ Keep functions small and single-purpose.
+✅ Avoid calling functions in WHERE clauses if possible — may prevent index usage.
+✅ Prefer table-valued functions for reusable result sets.
+
+🔹 14. Interview-Focused Q&A Topics
+
+Difference between scalar and table-valued functions.
+
+Inline vs multi-statement TVF — performance implications.
+
+Can a function modify data? (→ Generally no).
+
+Difference between stored procedure and function.
+
+Why inline TVFs are more efficient.
+
+How to return multiple rows from a function.
+
+Limitations of functions (error handling, transactions).
+
+Where can you use functions (SELECT, WHERE, JOIN).
+
+Can you use DML inside a function? (only in inline TVFs).
+
+How are scalar UDFs optimized in SQL Server 2019+ (UDF inlining feature).
+
+🔹 15. Quick Summary Table
+Function Type	Returns	Statements	Performance	Example Use
+Scalar	Single value	1+	Medium	Calculate tax, discount
+Inline TVF	Table (single SELECT)	1	High	Parameterized view
+Multi-Statement TVF	Table (multiple statements)	Many	Lower	Complex data processing
