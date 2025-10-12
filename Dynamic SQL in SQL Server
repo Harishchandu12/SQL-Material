@@ -1,0 +1,199 @@
+📘 Dynamic SQL in SQL Server
+🔹 1. Introduction
+
+Dynamic SQL is a method of constructing and executing SQL statements at runtime instead of writing fixed queries.
+
+Built as a string variable and executed with EXEC or sp_executesql.
+
+Enables flexibility for variable table names, columns, or search criteria.
+
+Useful for complex reporting, multi-table operations, and generic procedures.
+
+🔹 1.1 Methods to Execute Dynamic SQL
+
+EXECUTE / EXEC
+
+DECLARE @SQL NVARCHAR(MAX);
+SET @SQL = 'SELECT * FROM Employees';
+EXEC(@SQL);
+
+
+sp_executesql (recommended)
+
+Supports parameterization → reduces SQL injection risk
+
+DECLARE @SQL NVARCHAR(MAX);
+DECLARE @EmpID INT = 101;
+
+SET @SQL = N'SELECT * FROM Employees WHERE EmployeeID = @ID';
+EXEC sp_executesql @SQL, N'@ID INT', @ID = @EmpID;
+
+🔹 2. Use Cases for Dynamic SQL
+🔹 2.1 Dynamic Table or Column Names
+
+Sometimes table or column names are not fixed at design time.
+
+DECLARE @TableName NVARCHAR(50) = 'Employees';
+DECLARE @ColumnName NVARCHAR(50) = 'Salary';
+DECLARE @SQL NVARCHAR(MAX);
+
+SET @SQL = N'SELECT ' + QUOTENAME(@ColumnName) + ' FROM ' + QUOTENAME(@TableName);
+EXEC sp_executesql @SQL;
+
+
+Use case: Generic stored procedures that work on multiple tables.
+
+🔹 2.2 Conditional WHERE Clauses
+
+Queries with optional parameters where filters may or may not exist.
+
+CREATE PROCEDURE GetEmployees
+    @DeptID INT = NULL,
+    @MinSalary DECIMAL(10,2) = NULL
+AS
+BEGIN
+    DECLARE @SQL NVARCHAR(MAX) = N'SELECT * FROM Employees WHERE 1=1';
+    
+    IF @DeptID IS NOT NULL
+        SET @SQL += ' AND DepartmentID = @DeptID';
+    
+    IF @MinSalary IS NOT NULL
+        SET @SQL += ' AND Salary >= @MinSalary';
+    
+    EXEC sp_executesql @SQL, N'@DeptID INT, @MinSalary DECIMAL(10,2)',
+        @DeptID = @DeptID, @MinSalary = @MinSalary;
+END
+
+
+Use case: Optional filters for search screens, reports, or dashboards.
+
+🔹 2.3 Pivot or Unpivot Queries
+
+Column names may need to be generated dynamically.
+
+DECLARE @cols NVARCHAR(MAX), @sql NVARCHAR(MAX);
+
+SELECT @cols = STRING_AGG(QUOTENAME(DepartmentName), ',') 
+FROM Departments;
+
+SET @sql = N'SELECT EmployeeID, ' + @cols + '
+FROM (
+    SELECT EmployeeID, DepartmentName, Salary FROM Employees
+) x
+PIVOT(
+    SUM(Salary) FOR DepartmentName IN (' + @cols + ')
+) p';
+
+EXEC sp_executesql @sql;
+
+
+Use case: Dynamic reporting with unknown categories.
+
+🔹 2.4 Dynamic Index / Maintenance Scripts
+
+Automate index rebuilds or updates for all tables without hardcoding names.
+
+DECLARE @TableName NVARCHAR(128);
+DECLARE TableCursor CURSOR FOR
+SELECT name FROM sys.tables;
+
+OPEN TableCursor;
+FETCH NEXT FROM TableCursor INTO @TableName;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    EXEC('ALTER INDEX ALL ON ' + QUOTENAME(@TableName) + ' REBUILD');
+    FETCH NEXT FROM TableCursor INTO @TableName;
+END
+
+CLOSE TableCursor;
+DEALLOCATE TableCursor;
+
+
+Use case: DBA automation scripts.
+
+🔹 2.5 Dynamic SQL for Security / Multi-Tenant
+
+Execute queries on different schemas or databases dynamically.
+
+DECLARE @DBName NVARCHAR(128) = 'CustomerDB1';
+DECLARE @SQL NVARCHAR(MAX);
+
+SET @SQL = 'SELECT COUNT(*) FROM ' + QUOTENAME(@DBName) + '.dbo.Orders';
+EXEC sp_executesql @SQL;
+
+
+Use case: Multi-tenant systems where tenant databases differ.
+
+🔹 2.6 Dynamic Search Across Multiple Tables
+DECLARE @SearchTerm NVARCHAR(100) = 'Smith';
+DECLARE @SQL NVARCHAR(MAX) = '';
+
+SELECT @SQL += 'SELECT * FROM ' + QUOTENAME(TABLE_NAME) + ' WHERE LastName LIKE ''%' + @SearchTerm + '%'' UNION ALL '
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME LIKE 'Employees%';
+
+SET @SQL = LEFT(@SQL, LEN(@SQL)-10);  -- Remove last UNION ALL
+EXEC sp_executesql @SQL;
+
+
+Use case: Searching across multiple similar tables dynamically.
+
+🔹 3. Advantages of Dynamic SQL
+Advantage	Explanation
+Flexibility	Queries can adapt at runtime based on parameters
+Generic procedures	Can work on multiple tables/columns
+Dynamic reporting	Pivot, filtering, and dashboards
+Automation	Scripts for DB maintenance or batch updates
+🔹 4. Risks / Disadvantages
+Risk	Explanation
+SQL Injection	If parameters are concatenated directly
+Plan caching issues	Each dynamic SQL string generates a new plan
+Harder to debug	Dynamic queries are less readable
+Overuse	Can lead to maintenance complexity
+
+Mitigation:
+
+Always use sp_executesql with parameterization
+
+Use QUOTENAME() for table/column names
+
+Avoid unnecessary dynamic queries
+
+🔹 5. Best Practices
+
+Prefer parameterized queries (sp_executesql) over EXEC().
+
+Validate table/column names using QUOTENAME() to avoid SQL injection.
+
+Avoid dynamic SQL if a static query can achieve the same.
+
+Use caching and consistent query structures for frequent dynamic queries.
+
+Keep dynamic SQL modular and well-documented.
+
+🔹 6. Interview / Practical Notes
+Question	Answer
+What is dynamic SQL?	SQL query constructed at runtime and executed dynamically
+When to use dynamic SQL?	Variable tables/columns, optional filters, pivot reports, multi-tenant DBs
+How to prevent SQL injection?	Use sp_executesql with parameters and QUOTENAME() for identifiers
+Drawbacks?	Plan caching issues, harder debugging, potential security risk
+Difference EXEC vs sp_executesql?	EXEC does not support parameters safely, sp_executesql supports parameters and plan reuse
+🔹 7. Summary Table
+Use Case	Example	Key Notes
+Dynamic table/column names	SELECT [Salary] FROM Employees	Use QUOTENAME()
+Conditional filters	Optional WHERE clauses	Use sp_executesql with parameters
+Dynamic pivot reports	Aggregate by unknown categories	Construct column list dynamically
+Multi-tenant / multi-schema	Query different DBs	Validate DB names, parameterize
+Maintenance scripts	Rebuild indexes on all tables	Cursor + dynamic SQL
+Search across multiple tables	Union all queries dynamically	String concatenation with safe identifiers
+
+✅ In Summary
+
+Dynamic SQL provides flexibility for variable table names, columns, filters, and reporting.
+
+Use sp_executesql and QUOTENAME for security and parameterization.
+
+Avoid overuse to maintain performance, readability, and maintainability.
+
+Ideal for generic procedures, multi-tenant systems, dynamic reporting, and automation scripts.
