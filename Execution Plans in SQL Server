@@ -1,0 +1,199 @@
+📘 Execution Plans in SQL Server
+
+🔹 1. Introduction
+
+Execution plans are visual or textual representations of how SQL Server executes a query.
+They help understand:
+
+Which indexes are used
+
+Join order and join type
+
+Scan vs seek operations
+
+Estimated vs actual number of rows
+
+Cost distribution of query operations
+
+Purpose: Optimize queries and improve performance.
+
+🔹 2. Estimated Execution Plan vs Actual Execution Plan
+Feature	Estimated Execution Plan	Actual Execution Plan
+When generated	Before query execution	After query execution
+Row counts	Based on statistics	Actual rows returned
+Execution	No data retrieval	Retrieves data
+Cost estimation	Shows estimated I/O and CPU cost	Shows actual I/O and CPU used
+Use case	Query design & prediction	Query tuning and analysis
+How to view	SET SHOWPLAN_ALL ON / Ctrl+L in SSMS	Include Actual Execution Plan (Ctrl+M)
+🔹 3. How SQL Server Uses Execution Plans
+
+Query Compilation
+
+SQL Server generates a query plan from the T-SQL.
+
+Uses statistics to estimate row counts and choose operations.
+
+Query Optimization
+
+Evaluates different strategies: Index Seek vs Scan, Join types (Nested Loop, Merge Join, Hash Join).
+
+Chooses lowest estimated cost plan.
+
+Query Execution
+
+Actual execution may differ if statistics are outdated or data distribution differs.
+
+🔹 4. Key Operators in Execution Plans
+Operator	Description
+Clustered Index Seek	Efficient lookup on clustered index
+Nonclustered Index Seek	Lookup on nonclustered index
+Clustered Index Scan	Reads entire clustered index
+Table Scan	Reads entire table (heap)
+Nested Loops Join	Iterative join for small datasets
+Merge Join	Sorted join for large datasets
+Hash Match Join	Hash-based join for large, unsorted datasets
+Compute Scalar	Calculates expressions (e.g., totals, computed columns)
+Key Lookup	Fetches columns not covered by nonclustered index
+🔹 5. Viewing Execution Plans
+5.1 Estimated Execution Plan
+-- Method 1: SSMS toolbar button "Display Estimated Execution Plan"
+-- Method 2: T-SQL
+SET SHOWPLAN_ALL ON;
+GO
+SELECT * FROM Employees WHERE LastName = 'Smith';
+GO
+SET SHOWPLAN_ALL OFF;
+
+5.2 Actual Execution Plan
+-- Method 1: SSMS toolbar button "Include Actual Execution Plan"
+-- Method 2: T-SQL
+SET STATISTICS PROFILE ON;
+GO
+SELECT * FROM Employees WHERE LastName = 'Smith';
+GO
+SET STATISTICS PROFILE OFF;
+
+
+Includes actual rows processed, execution order, and actual cost.
+
+Critical for tuning performance.
+
+🔹 6. Interpreting Execution Plans
+6.1 Estimated vs Actual Row Counts
+
+Compare EstimatedRows vs ActualRows
+
+Large differences → indicates outdated or missing statistics
+
+EstimatedRows = 1000
+ActualRows = 100000
+
+
+Solution: Update statistics, consider indexes.
+
+6.2 Operators
+
+Seek → good (selective lookup)
+
+Scan → may be costly (consider indexing)
+
+Nested Loops → good for small joins
+
+Hash Match / Merge Join → good for large datasets, sorted/unsorted
+
+🔹 7. Example 1: Simple SELECT
+SELECT * FROM Employees WHERE Salary > 50000;
+
+
+Estimated Execution Plan:
+
+Nonclustered Index Seek on Salary
+
+EstimatedRows: 1000
+
+Actual Execution Plan:
+
+Nonclustered Index Seek on Salary
+
+ActualRows: 1200
+
+✅ Shows optimizer chose appropriate index. Minor difference due to data distribution.
+
+🔹 8. Example 2: JOIN Between Tables
+SELECT e.FirstName, e.LastName, d.DepartmentName
+FROM Employees e
+JOIN Departments d ON e.DepartmentID = d.DepartmentID
+WHERE d.Location = 'NY';
+
+
+Estimated Plan:
+
+Nested Loop Join
+
+Index Seek on Departments (Location)
+
+Index Seek on Employees (DepartmentID)
+
+Actual Plan:
+
+Shows actual rows per operator
+
+Can detect skewed data causing performance issues
+
+Optimization Tip:
+
+If actual rows >> estimated → check statistics
+
+Consider covering index or filtered index.
+
+🔹 9. Best Practices for Execution Plans
+
+Always compare Estimated vs Actual Plan for tuning.
+
+Update statistics regularly to improve estimation accuracy.
+
+Use Include Actual Execution Plan for complex queries.
+
+Check for high-cost operators (Table Scan, Key Lookup).
+
+Consider index improvements:
+
+Covering indexes to avoid key lookups
+
+Filtered indexes for selective queries
+
+Look at parallelism indicators (for large queries).
+
+🔹 10. Execution Plan Tips for Performance Tuning
+Scenario	Action
+Table Scan on large table	Add index, check filter
+Key Lookup	Consider covering index
+Nested Loops on large dataset	Consider Merge Join or Hash Join
+EstimatedRows << ActualRows	Update statistics
+High CPU cost operator	Optimize query logic, consider indexed views
+🔹 11. Common Interview Questions
+Question	Answer
+Difference between Estimated & Actual Execution Plan	Estimated → before execution (no rows read), Actual → after execution (shows actual rows & cost)
+Why compare estimated vs actual rows?	Detects outdated stats or skewed data affecting query plan
+Key operators to look at	Seek, Scan, Nested Loops, Hash Join, Merge Join, Key Lookup
+How to include execution plan in SSMS?	Ctrl+M for actual plan, Ctrl+L for estimated plan
+How does statistics affect execution plan?	Optimizer uses stats to estimate rows and choose plan
+
+🔹 12. Summary Table
+Aspect	Estimated Plan	Actual Plan
+Timing	Before execution	After execution
+Rows	Estimated rows	Actual rows
+Data Retrieval	No	Yes
+Purpose	Query design, predict plan	Query tuning, identify bottlenecks
+Accuracy	Based on statistics	Real execution metrics
+Example Use	Check if query will use index	Check actual scan/seek and cost
+
+✅ In Summary
+
+Execution plans are critical for query performance analysis.
+
+Estimated plans help predict behavior before running queries.
+
+Actual plans show real execution metrics, highlighting potential issues.
+
+Understanding and interpreting execution plans allows indexing, query rewriting, and statistics updates for optimal performance.
