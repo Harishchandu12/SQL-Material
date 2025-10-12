@@ -1,0 +1,193 @@
+📘 sp_executesql vs EXEC
+🔹 1. Introduction
+
+Both EXEC and sp_executesql are used to execute dynamic SQL in SQL Server.
+
+Dynamic SQL: SQL statements constructed at runtime as string variables.
+
+Choice between EXEC and sp_executesql affects security, performance, and plan reuse.
+
+🔹 2. EXEC (EXECUTE)
+🧩 Definition
+
+Executes a string as SQL code.
+
+Simple to use but limited functionality.
+
+🔹 2.1 Syntax
+DECLARE @SQL NVARCHAR(MAX);
+SET @SQL = 'SELECT * FROM Employees WHERE DepartmentID = 10';
+EXEC(@SQL);
+
+🔹 2.2 Characteristics of EXEC
+
+No parameterization → user input concatenated directly.
+
+Plan reuse limited → new plan often generated for each string.
+
+Higher SQL injection risk if concatenating user input.
+
+Can execute T-SQL statements or batch scripts.
+
+🔹 2.3 Example: Simple EXEC
+DECLARE @SQL NVARCHAR(MAX);
+DECLARE @DeptID INT = 10;
+
+SET @SQL = 'SELECT * FROM Employees WHERE DepartmentID = ' + CAST(@DeptID AS NVARCHAR(10));
+EXEC(@SQL);
+
+
+Issue: Concatenation may allow SQL injection.
+
+🔹 3. sp_executesql
+🧩 Definition
+
+System stored procedure to execute parameterized dynamic SQL.
+
+Supports input/output parameters.
+
+Safer and more efficient for plan caching.
+
+🔹 3.1 Syntax
+sp_executesql
+    @statement = N'SQL statement',
+    @params = N'@param1 INT, @param2 NVARCHAR(50)',
+    @param1 = value1,
+    @param2 = value2;
+
+🔹 3.2 Characteristics of sp_executesql
+
+Supports parameters → reduces SQL injection risk
+
+Better plan reuse → same SQL statement with different parameters can reuse execution plan
+
+Can return output parameters
+
+Works with nvarchar type strings
+
+Recommended for production dynamic SQL
+
+🔹 3.3 Example: Parameterized Query
+DECLARE @SQL NVARCHAR(MAX);
+DECLARE @DeptID INT = 10;
+
+SET @SQL = N'SELECT * FROM Employees WHERE DepartmentID = @DeptID';
+EXEC sp_executesql @SQL, N'@DeptID INT', @DeptID = @DeptID;
+
+
+Benefits:
+
+No string concatenation
+
+SQL injection mitigated
+
+Execution plan reused
+
+🔹 3.4 Example: Output Parameter
+DECLARE @SQL NVARCHAR(MAX);
+DECLARE @Count INT;
+DECLARE @DeptID INT = 10;
+
+SET @SQL = N'SELECT @CountOut = COUNT(*) FROM Employees WHERE DepartmentID = @DeptID';
+EXEC sp_executesql @SQL, N'@DeptID INT, @CountOut INT OUTPUT', @DeptID = @DeptID, @CountOut = @Count OUTPUT;
+
+SELECT @Count AS EmployeeCount;
+
+
+Demonstrates output parameter support.
+
+🔹 4. Key Differences
+Feature	EXEC	sp_executesql
+Parameterization	❌ Not supported	✅ Supported
+SQL Injection Risk	High if concatenating input	Low if parameters used
+Execution Plan Reuse	Low	High
+Input/Output Parameters	❌ No direct support	✅ Supported
+Complexity	Simple	Slightly more verbose
+Recommended Use	Quick ad-hoc queries	Production dynamic SQL
+🔹 5. Use Cases
+🔹 5.1 When to use EXEC
+
+Simple, ad-hoc queries in scripts
+
+Executing T-SQL batches dynamically
+
+Quick tests in development
+
+🔹 5.2 When to use sp_executesql
+
+Dynamic queries with user input parameters
+
+Queries executed frequently with varying parameters
+
+Need for output parameters
+
+Production queries requiring plan reuse and security
+
+🔹 6. Common Pitfalls
+Pitfall	Description	Solution
+Concatenation with EXEC	SQL injection risk	Use sp_executesql with parameters
+Lack of plan reuse	EXEC generates new plan each time	sp_executesql reuses plan if statement text same
+Output variables	EXEC cannot capture output	Use sp_executesql with OUTPUT parameters
+🔹 7. Practical Example Comparison
+🔹 7.1 EXEC (Unsafe)
+DECLARE @DeptID INT = 10;
+DECLARE @SQL NVARCHAR(MAX);
+
+SET @SQL = 'SELECT * FROM Employees WHERE DepartmentID = ' + CAST(@DeptID AS NVARCHAR(10));
+EXEC(@SQL);
+
+
+Safe for internal queries
+
+Risky with user input
+
+🔹 7.2 sp_executesql (Safe & Efficient)
+DECLARE @DeptID INT = 10;
+DECLARE @SQL NVARCHAR(MAX);
+
+SET @SQL = N'SELECT * FROM Employees WHERE DepartmentID = @DeptID';
+EXEC sp_executesql @SQL, N'@DeptID INT', @DeptID = @DeptID;
+
+
+Safe for dynamic queries with parameters
+
+Plan can be reused → better performance
+
+Mitigates SQL injection
+
+🔹 8. Best Practices
+
+Always prefer sp_executesql over EXEC for dynamic SQL in production.
+
+Parameterize user inputs → avoid concatenation.
+
+Use QUOTENAME() for dynamic object names (tables/columns).
+
+Use EXEC only for ad-hoc scripts or batch execution.
+
+Monitor execution plans → sp_executesql improves plan caching and reduces recompilations.
+
+Combine with input validation for additional security.
+
+🔹 9. Interview / Practical Notes
+Question	Answer
+Difference EXEC vs sp_executesql?	EXEC: no parameters, higher SQLi risk, poor plan reuse. sp_executesql: supports parameters, safer, plan reuse
+When to use EXEC?	Simple ad-hoc queries, batch scripts
+When to use sp_executesql?	Dynamic SQL with parameters, production, frequent execution
+How to prevent SQL Injection in dynamic SQL?	Parameterize with sp_executesql, use QUOTENAME() for identifiers
+Can sp_executesql return output parameters?	✅ Yes, supports input/output parameters
+🔹 10. Summary Table
+Feature	EXEC	sp_executesql
+Parameterization	❌	✅
+Plan reuse	Low	High
+SQL Injection Risk	High	Low (with parameters)
+Output variables	❌	✅
+Recommended for	Ad-hoc scripts	Production dynamic queries
+
+✅ In Summary
+
+EXEC → quick and simple, no parameters, limited plan reuse.
+
+sp_executesql → supports parameters, plan reuse, and output variables, safer for dynamic SQL in production.
+
+Always parameterize user input, prefer sp_executesql, and use QUOTENAME() for object names.
