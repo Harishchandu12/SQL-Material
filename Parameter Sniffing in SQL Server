@@ -1,0 +1,211 @@
+📘 Parameter Sniffing in SQL Server
+🔹 1. Introduction
+
+Parameter Sniffing occurs when SQL Server reuses an execution plan that was generated for a specific parameter value in a stored procedure or parameterized query, but that plan is not optimal for other parameter values.
+
+Helps reduce compilation time
+
+Can hurt performance for some input values
+
+Common in OLTP systems with varying data distributions
+
+🔹 2. How Parameter Sniffing Happens
+
+A stored procedure or parameterized query is executed.
+
+SQL Server sniffs the parameter value at first execution.
+
+Optimizer generates an execution plan based on this parameter.
+
+Execution plan is cached in plan cache.
+
+Subsequent executions reuse the cached plan, regardless of different parameter values.
+
+If data distribution varies significantly, plan may perform poorly.
+
+🔹 2.1 Example Scenario
+
+Table: Orders(OrderID, CustomerID, TotalAmount)
+
+Most orders have TotalAmount < 1000, a few orders > 100000.
+
+CREATE PROCEDURE GetOrdersByAmount
+    @Amount DECIMAL(10,2)
+AS
+BEGIN
+    SELECT OrderID, CustomerID, TotalAmount
+    FROM Orders
+    WHERE TotalAmount > @Amount;
+END
+
+
+First execution:
+
+EXEC GetOrdersByAmount @Amount = 10;  -- small value
+
+
+Optimizer generates Index Scan → large number of rows
+
+Second execution:
+
+EXEC GetOrdersByAmount @Amount = 50000;  -- large value
+
+
+Reuses same plan (Index Scan)
+
+But only a few rows expected → plan is inefficient (Index Seek would be better)
+
+Problem: Slow query execution for the second parameter.
+
+🔹 3. Signs of Parameter Sniffing
+
+Sudden slow performance for specific parameter values.
+
+Same stored procedure fast for some values, slow for others.
+
+Execution plan reuse visible in sys.dm_exec_query_stats or SET STATISTICS XML ON.
+
+🔹 4. Solutions to Parameter Sniffing
+🔹 4.1 OPTION (RECOMPILE)
+
+Forces SQL Server to recompile the query for each execution, generating a plan based on current parameter value.
+
+Good for queries with highly variable data distributions.
+
+CREATE PROCEDURE GetOrdersByAmount
+    @Amount DECIMAL(10,2)
+AS
+BEGIN
+    SELECT OrderID, CustomerID, TotalAmount
+    FROM Orders
+    WHERE TotalAmount > @Amount
+    OPTION (RECOMPILE);
+END
+
+
+Pros: Always optimal plan
+
+Cons: CPU overhead for frequent recompilation
+
+🔹 4.2 Local Variables in Procedure
+
+Assign parameter to a local variable inside procedure.
+
+Optimizer cannot sniff variable → uses average distribution plan.
+
+CREATE PROCEDURE GetOrdersByAmount
+    @Amount DECIMAL(10,2)
+AS
+BEGIN
+    DECLARE @LocalAmount DECIMAL(10,2) = @Amount;
+
+    SELECT OrderID, CustomerID, TotalAmount
+    FROM Orders
+    WHERE TotalAmount > @LocalAmount;
+END
+
+
+Pros: Plan works reasonably for all parameters
+
+Cons: Not optimal for extreme parameter values
+
+🔹 4.3 OPTIMIZE FOR Hint
+
+Forces optimizer to generate plan for a specific parameter value, e.g., typical or average.
+
+SELECT OrderID, CustomerID, TotalAmount
+FROM Orders
+WHERE TotalAmount > @Amount
+OPTION (OPTIMIZE FOR (@Amount = 500));
+
+
+Pros: Consistent plan for known common value
+
+Cons: May still be suboptimal for very rare parameters
+
+🔹 4.4 OPTIMIZE FOR UNKNOWN
+
+Generates a generic plan using average statistics, ignoring sniffed value.
+
+SELECT OrderID, CustomerID, TotalAmount
+FROM Orders
+WHERE TotalAmount > @Amount
+OPTION (OPTIMIZE FOR UNKNOWN);
+
+
+Pros: Avoids worst-case scenarios for extreme parameter values
+
+Cons: Not optimal for most frequent values
+
+🔹 4.5 Plan Guides
+
+Advanced solution for forcing a plan for a query without changing code.
+
+Used in production when stored procedure cannot be modified.
+
+🔹 4.6 Partitioned / Filtered Index
+
+For queries filtering on known value ranges, using filtered indexes or partitioning reduces impact of sniffed plans.
+
+🔹 5. Comparison of Solutions
+Solution	When to Use	Pros	Cons
+OPTION (RECOMPILE)	Highly variable parameters	Optimal plan	CPU overhead
+Local Variable	Moderate variation	Stable plan	May be suboptimal for extremes
+OPTIMIZE FOR (@param=value)	Known common parameter	Best for frequent value	Suboptimal for others
+OPTIMIZE FOR UNKNOWN	Avoid worst-case plan	Stable plan for all	Not always optimal
+Plan Guides	Cannot modify procedure	Force plan	Complex, advanced
+🔹 6. Best Practices
+
+Analyze execution plans to confirm parameter sniffing.
+
+Use OPTION (RECOMPILE) for critical queries with high variation.
+
+For large SPs, use local variables or OPTIMIZE FOR UNKNOWN.
+
+Monitor query stats to identify performance degradation.
+
+Combine with indexing & statistics for consistent performance.
+
+Avoid unnecessary forced plans unless tested.
+
+🔹 7. Real-World Example
+-- Problem query
+EXEC GetOrdersByAmount @Amount = 10;      -- fast, plan cached
+EXEC GetOrdersByAmount @Amount = 50000;   -- slow due to cached plan
+
+-- Solution 1: Recompile
+EXEC GetOrdersByAmount @Amount = 50000; OPTION (RECOMPILE);
+
+-- Solution 2: Local variable
+CREATE PROCEDURE GetOrdersByAmount
+    @Amount DECIMAL(10,2)
+AS
+BEGIN
+    DECLARE @LocalAmount DECIMAL(10,2) = @Amount;
+    SELECT OrderID, CustomerID, TotalAmount
+    FROM Orders
+    WHERE TotalAmount > @LocalAmount;
+END
+
+
+Performance improves for extreme parameter values.
+
+Prevents “good for one parameter, bad for another” scenario.
+
+🔹 8. Key Notes for Interviews / Production
+Question	Answer
+What is parameter sniffing?	SQL Server reuses cached execution plan generated for first parameter value
+When is it a problem?	When data distribution varies greatly → plan may be inefficient
+How to detect?	Compare estimated vs actual execution plan row counts
+Common solutions?	OPTION (RECOMPILE), local variables, OPTIMIZE FOR, OPTIMIZE FOR UNKNOWN
+Impact of statistics?	Outdated stats can worsen sniffing problem
+
+✅ In Summary
+
+Parameter sniffing can cause unexpected poor performance in stored procedures or parameterized queries.
+
+Solutions depend on query characteristics and parameter variability.
+
+Always monitor execution plans and row estimates to choose the optimal solution.
+
+Combine sniffing solutions with proper indexing and statistics updates for consistent performance.
