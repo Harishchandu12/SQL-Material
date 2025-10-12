@@ -1,0 +1,302 @@
+📘 Explicit vs Implicit Transactions
+
+🔹 1. Introduction: What is a Transaction?
+
+A transaction is a sequence of one or more SQL statements that are executed as a single logical unit of work.
+
+A transaction must satisfy the ACID properties:
+
+Atomicity – all or nothing
+
+Consistency – data remains valid
+
+Isolation – no interference
+
+Durability – changes persist after commit
+
+Transactions ensure data integrity — even in case of failure, system crash, or concurrency.
+
+🔹 2. Transaction Control in SQL Server
+
+SQL Server supports two main transaction modes:
+
+Type	Description
+Explicit Transaction	You start and end the transaction manually.
+Implicit Transaction	SQL Server starts a new transaction automatically after each previous one completes.
+
+Additionally, there is also:
+
+Autocommit mode (default) — each individual statement is treated as a complete transaction.
+
+🔹 3. Explicit Transactions
+🧩 Definition
+
+In an explicit transaction, the programmer explicitly starts and ends the transaction using:
+BEGIN TRANSACTION, COMMIT TRANSACTION, and ROLLBACK TRANSACTION.
+
+This gives full control over when a transaction starts and when it is committed or rolled back.
+
+🧩 Syntax
+BEGIN TRANSACTION [transaction_name];
+
+-- Your SQL statements here
+UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = 1;
+UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = 2;
+
+IF @@ERROR <> 0
+    ROLLBACK TRANSACTION;
+ELSE
+    COMMIT TRANSACTION;
+
+🧩 Example 1 – Explicit Transaction (Successful)
+BEGIN TRANSACTION;
+
+UPDATE Accounts SET Balance = Balance - 500 WHERE AccountID = 101;
+UPDATE Accounts SET Balance = Balance + 500 WHERE AccountID = 202;
+
+COMMIT TRANSACTION;
+
+
+Explanation:
+
+Both updates are part of one transaction.
+
+If both succeed → COMMIT finalizes changes.
+
+If any fails → you can ROLLBACK to restore previous state.
+
+🧩 Example 2 – Explicit Transaction (Failure with Rollback)
+BEGIN TRANSACTION;
+
+UPDATE Accounts SET Balance = Balance - 1000 WHERE AccountID = 10;
+UPDATE Accounts SET Balance = Balance + 1000 WHERE AccountID = 9999; -- Invalid account
+
+IF @@ERROR <> 0
+    ROLLBACK TRANSACTION;
+ELSE
+    COMMIT TRANSACTION;
+
+
+Result:
+
+Since the second UPDATE fails, the first change is rolled back.
+
+Database remains consistent (Atomicity maintained).
+
+🧩 Example 3 – Nested Explicit Transactions
+BEGIN TRANSACTION OuterTran;
+
+UPDATE Employees SET Salary = Salary + 1000 WHERE EmpID = 1;
+
+BEGIN TRANSACTION InnerTran;
+UPDATE Departments SET Budget = Budget - 1000 WHERE DeptID = 3;
+COMMIT TRANSACTION InnerTran;
+
+COMMIT TRANSACTION OuterTran;
+
+
+Note:
+SQL Server maintains an internal transaction count.
+Only the outermost COMMIT truly commits the transaction.
+A ROLLBACK at any level rolls back the entire chain.
+
+✅ Advantages of Explicit Transactions
+
+Full developer control over transaction scope.
+
+Ensures data consistency during complex, multi-step operations.
+
+Allows manual error handling and conditional commits.
+
+Useful for critical financial or multi-table operations.
+
+⚠️ Disadvantages
+
+Developer must ensure transactions are committed or rolled back — otherwise can lead to open locks.
+
+Requires manual management, increasing code complexity.
+
+🔹 4. Implicit Transactions
+🧩 Definition
+
+In implicit transactions, SQL Server automatically starts a new transaction whenever a previous one finishes (committed or rolled back).
+
+You don’t use BEGIN TRANSACTION — but you must explicitly end each transaction using COMMIT or ROLLBACK.
+
+This mode is enabled using:
+
+SET IMPLICIT_TRANSACTIONS ON;
+
+🧩 Behavior
+
+SQL Server automatically begins a transaction when the first statement executes.
+
+The transaction remains active until the user explicitly issues a COMMIT or ROLLBACK.
+
+After you end one transaction, SQL Server automatically begins a new one for the next statement.
+
+🧩 Example – Implicit Transaction Mode
+SET IMPLICIT_TRANSACTIONS ON;
+
+-- This statement automatically starts a transaction
+INSERT INTO Employees (EmpID, EmpName, DeptID) VALUES (10, 'Alice', 2);
+
+-- Data not yet committed
+COMMIT TRANSACTION;  -- You must commit manually
+
+-- Next statement automatically starts a new transaction
+UPDATE Employees SET DeptID = 3 WHERE EmpID = 10;
+COMMIT TRANSACTION;
+
+
+Explanation:
+
+No BEGIN TRANSACTION is required.
+
+Each DML statement triggers a new transaction automatically.
+
+You must COMMIT or ROLLBACK manually — otherwise SQL Server keeps waiting.
+
+🧩 Commands Affected by Implicit Transactions
+
+When SET IMPLICIT_TRANSACTIONS ON is enabled, these statements start a transaction automatically:
+
+INSERT
+
+UPDATE
+
+DELETE
+
+SELECT (if used with explicit locking hints)
+
+CREATE
+
+ALTER
+
+DROP
+
+GRANT, REVOKE
+
+TRUNCATE TABLE
+
+🧩 Checking the Mode
+SELECT @@OPTIONS & 2;  -- Returns 2 if IMPLICIT_TRANSACTIONS is ON
+
+✅ Advantages of Implicit Transactions
+
+Reduces need to manually begin transactions.
+
+Useful in interactive sessions (e.g., SQL Management Studio) where you want control but don’t always type BEGIN TRAN.
+
+Helps avoid accidental commits in multi-step DMLs.
+
+⚠️ Disadvantages
+
+If user forgets to COMMIT or ROLLBACK, the transaction remains open → locks resources indefinitely.
+
+Performance overhead in long-running sessions.
+
+Less control over transaction grouping compared to explicit transactions.
+
+🔹 5. Autocommit Transactions (for reference)
+🧩 Definition
+
+By default, SQL Server operates in autocommit mode — each individual statement is treated as a complete transaction.
+
+Example:
+
+UPDATE Products SET Price = Price * 1.1 WHERE Category = 'Electronics';
+
+
+SQL Server automatically begins and commits this as a single transaction.
+
+If it fails, the statement rolls back automatically.
+
+This is the default mode for most SQL environments.
+
+🔹 6. Comparison: Explicit vs Implicit Transactions
+Feature	Explicit Transaction	Implicit Transaction
+Start Method	Manually using BEGIN TRANSACTION	Automatically started by SQL Server when first statement executes
+End Method	Must use COMMIT or ROLLBACK manually	Must use COMMIT or ROLLBACK manually
+Control	Full control over transaction scope	Partial control (auto start)
+Syntax Simplicity	More verbose (explicit begin)	Less typing (no begin needed)
+Common Usage	Complex business logic, stored procedures	Interactive sessions, ad-hoc queries
+Risk of Open Transactions	Only if you forget to commit/rollback	Higher, if user forgets to commit manually
+Performance	Slightly better (less auto management)	Slightly slower (auto transaction handling)
+Default Mode	Must be enabled manually	Must be enabled via SET IMPLICIT_TRANSACTIONS ON
+Use Case Example	Bank fund transfer, order processing	Developer testing, manual data updates
+🔹 7. Example Comparison
+🧩 Explicit Transaction
+BEGIN TRANSACTION;
+
+UPDATE Orders SET Status = 'Shipped' WHERE OrderID = 1001;
+UPDATE Inventory SET Quantity = Quantity - 1 WHERE ProductID = 500;
+
+COMMIT TRANSACTION;
+
+🧩 Implicit Transaction
+SET IMPLICIT_TRANSACTIONS ON;
+
+UPDATE Orders SET Status = 'Shipped' WHERE OrderID = 1001;
+COMMIT TRANSACTION;
+
+UPDATE Inventory SET Quantity = Quantity - 1 WHERE ProductID = 500;
+COMMIT TRANSACTION;
+
+🔹 8. Best Practices
+
+✅ Use explicit transactions for:
+
+Multi-step operations across multiple tables.
+
+Financial or mission-critical operations.
+
+Stored procedures with conditional logic.
+
+✅ Use implicit transactions for:
+
+Manual / interactive DML operations in SQL Management Studio.
+
+Situations where you need automatic transaction start but manual commit.
+
+✅ Always:
+
+Include error handling (TRY...CATCH).
+
+Use SET NOCOUNT ON inside procedures to reduce overhead.
+
+Regularly check for open transactions using:
+
+DBCC OPENTRAN();
+
+🔹 9. Real-World Analogy
+Concept	Analogy
+Explicit Transaction	You manually press “Start Recording” and “Stop Recording” on a video camera.
+Implicit Transaction	The camera automatically starts recording when you move, but you must manually stop it.
+
+Both achieve the same goal — recording (transaction control) — but one gives you full control, while the other automates part of the process.
+
+🔹 10. Interview-Focused Q&A
+Question	Answer
+What is a transaction?	A logical unit of work that must be committed or rolled back.
+What’s the difference between explicit and implicit transactions?	Explicit: manually started and ended. Implicit: automatically started, manually ended.
+What command enables implicit transactions?	SET IMPLICIT_TRANSACTIONS ON;
+What happens if you don’t commit in implicit mode?	The transaction remains open, locking resources.
+Which transaction type provides more control?	Explicit transaction.
+What’s the default transaction mode in SQL Server?	Autocommit.
+Can you nest explicit transactions?	Yes, but only outermost COMMIT finalizes.
+How do you check if implicit mode is active?	SELECT @@OPTIONS & 2;
+What’s the risk of implicit transactions?	Resource locks if COMMIT/ROLLBACK is forgotten.
+🔹 11. Quick Summary Table
+Mode	Start	End	Control	Use Case	Risk
+Autocommit	Automatic per statement	Auto	None	Simple queries	None
+Explicit	BEGIN TRANSACTION	Manual (COMMIT/ROLLBACK)	Full	Procedures, multi-step logic	Low
+Implicit	Auto after statement	Manual (COMMIT/ROLLBACK)	Partial	Interactive DML	High (open locks)
+
+✅ In summary:
+
+Explicit transactions → for controlled, critical, and multi-statement operations.
+
+Implicit transactions → for automatic, interactive use cases.
+
+Always commit or roll back explicitly to maintain data integrity and release locks.
