@@ -1,0 +1,210 @@
+📘 Partitioned Tables & Indexes
+🔹 1. Introduction
+
+Partitioning is the process of dividing a large database table or index into smaller, more manageable pieces (partitions), while keeping them logically as a single object.
+
+Improves performance, maintenance, and manageability.
+
+Commonly used in large databases or data warehousing systems.
+
+Allows SQL Server to query or maintain data subsets efficiently.
+
+🔹 2. Key Concept
+
+Partitioning does not change the logical structure of the table or index.
+To the user or application, the table looks like a single table — but internally, SQL Server stores its data in multiple partitions.
+
+Each partition can be stored:
+
+On a separate filegroup
+
+Across different physical disks
+
+🔹 3. Types of Partitioning
+Type	Description
+Horizontal Partitioning	Divides a table by rows (based on key values)
+Vertical Partitioning	Divides a table by columns (rare in SQL Server, used for optimization)
+
+👉 In SQL Server, when we say “partitioning”, we usually mean horizontal partitioning.
+
+🔹 4. Why Use Partitioning?
+Benefit	Description
+Performance	Queries can scan only relevant partitions instead of the full table.
+Maintenance	Easier backup, restore, or load operations per partition.
+Data Management	Archiving or purging data becomes simpler (e.g., drop old partition).
+Parallelism	Improves performance by allowing SQL Server to work on multiple partitions simultaneously.
+Index Maintenance	Rebuild or reorganize index partitions individually.
+🔹 5. Key Components of Partitioning
+Component	Purpose
+Partition Function	Defines how data is divided — maps column values to partitions.
+Partition Scheme	Maps partitions to filegroups (storage locations).
+Partition Key	The column used to determine the partition (e.g., OrderDate).
+🔹 6. Example: Creating a Partitioned Table
+
+Let’s walk through a practical example.
+
+🧩 Step 1: Create Filegroups
+ALTER DATABASE SalesDB ADD FILEGROUP FG_2019;
+ALTER DATABASE SalesDB ADD FILEGROUP FG_2020;
+ALTER DATABASE SalesDB ADD FILEGROUP FG_2021;
+
+🧩 Step 2: Create Files for Each Filegroup
+ALTER DATABASE SalesDB 
+ADD FILE (NAME = Sales2019, FILENAME = 'D:\Data\Sales2019.ndf') TO FILEGROUP FG_2019;
+
+ALTER DATABASE SalesDB 
+ADD FILE (NAME = Sales2020, FILENAME = 'D:\Data\Sales2020.ndf') TO FILEGROUP FG_2020;
+
+ALTER DATABASE SalesDB 
+ADD FILE (NAME = Sales2021, FILENAME = 'D:\Data\Sales2021.ndf') TO FILEGROUP FG_2021;
+
+🧩 Step 3: Create a Partition Function
+
+Partition function defines how values map to partitions.
+
+CREATE PARTITION FUNCTION pfSalesRange (INT)
+AS RANGE LEFT FOR VALUES (2019, 2020, 2021);
+
+
+Here, values <=2019 go to Partition 1,
+values <=2020 go to Partition 2,
+values <=2021 go to Partition 3,
+and values >2021 go to Partition 4.
+
+🧩 Step 4: Create a Partition Scheme
+
+Partition scheme defines where (which filegroup) each partition’s data is stored.
+
+CREATE PARTITION SCHEME psSalesScheme
+AS PARTITION pfSalesRange
+TO (FG_2019, FG_2020, FG_2021, [PRIMARY]);
+
+🧩 Step 5: Create a Partitioned Table
+CREATE TABLE Sales
+(
+    SaleID INT IDENTITY(1,1),
+    SaleYear INT,
+    Amount MONEY
+)
+ON psSalesScheme (SaleYear);
+
+
+The partition key is SaleYear.
+
+Data is automatically placed in the corresponding filegroup.
+
+🧩 Step 6: Insert Sample Data
+INSERT INTO Sales (SaleYear, Amount)
+VALUES (2019, 1000), (2020, 2000), (2021, 1500), (2022, 1200);
+
+
+Each row is automatically stored in the appropriate partition.
+
+🔹 7. Verifying Partition Distribution
+
+You can check which partition each row belongs to:
+
+SELECT $PARTITION.pfSalesRange(SaleYear) AS PartitionNumber, *
+FROM Sales;
+
+🔹 8. Partitioned Indexes
+
+Indexes can also be partitioned — they follow the same partition scheme and function as the base table.
+
+Example: Partitioned Clustered Index
+CREATE CLUSTERED INDEX CIX_Sales_SaleYear
+ON Sales(SaleYear)
+ON psSalesScheme (SaleYear);
+
+
+The clustered index (and thus the table itself) is partitioned.
+
+Example: Partitioned Non-Clustered Index
+CREATE NONCLUSTERED INDEX IX_Sales_Amount
+ON Sales(Amount)
+ON psSalesScheme (SaleYear);
+
+
+Improves query performance while maintaining partition alignment.
+
+🔹 9. Partition Switching
+
+A powerful feature — move data between partitions and tables instantly without physically moving rows.
+
+Example:
+
+ALTER TABLE Sales SWITCH PARTITION 3 TO SalesArchive;
+
+
+Moves partition 3 data (e.g., 2021) to another table.
+
+Extremely fast because it’s metadata-only operation.
+
+🔹 10. Managing Partitioned Tables
+Operation	Description
+Split Partition	Add a new boundary value → creates a new partition
+Merge Partition	Combine two adjacent partitions
+Switch Partition	Move data between partitions or tables
+Truncate Partition	Delete data from a specific partition only
+Rebuild Partition	Rebuild index for a specific partition (not entire table)
+🔹 11. Best Practices
+
+Choose partition key wisely — typically a date or ID used in range queries.
+
+Keep partitions aligned (table and index share same partition function).
+
+Don’t over-partition — too many partitions can degrade performance.
+
+Use filegroups on separate disks for I/O optimization.
+
+Periodically merge/split partitions for new data ranges.
+
+Monitor partition statistics and query patterns.
+
+Use partition switching for archiving or loading bulk data efficiently.
+
+🔹 12. Advantages
+Benefit	Description
+Performance	Queries scan only relevant partitions.
+Manageability	Easier backup, restore, index rebuilds per partition.
+Scalability	Handle very large datasets efficiently.
+Availability	Partition-level maintenance reduces downtime.
+🔹 13. Disadvantages / Limitations
+Limitation	Description
+Complex setup	Requires defining functions and schemes manually.
+Maintenance overhead	Need to manage partition boundaries and splits.
+Limited improvement for small tables	Best for large datasets (millions+ rows).
+Increased storage	Extra metadata and partition alignment overhead.
+🔹 14. Real-World Use Cases
+
+Large Fact Tables in Data Warehouses (e.g., Sales, Orders, Logs)
+
+Time-Series Data (e.g., IoT, Financial Transactions)
+
+Archival Tables (partition by year/month)
+
+ETL Operations (fast load/unload using partition switching)
+
+Index Maintenance on massive tables (partition-level rebuild)
+
+🔹 15. Interview / Practical Notes
+Question	Answer
+What is partitioning?	Dividing large tables/indexes into smaller, manageable parts
+Types of partitioning?	Horizontal (by rows), Vertical (by columns)
+Components?	Partition Function, Partition Scheme, Partition Key
+Benefits?	Improved performance, easy maintenance, scalability
+What is partition switching?	Fast metadata operation to move data between partitions/tables
+When not to use?	For small tables or systems with frequent single-row updates
+What is aligned index?	Index that uses the same partition scheme/function as its table
+
+✅ In Summary
+
+Partitioning = Logical table split for performance and manageability.
+
+Partition Function defines how → Partition Scheme defines where.
+
+Use aligned partitioned indexes for optimal performance.
+
+Great for large, read-heavy or time-based data.
+
+Enables fast data management (archival, switching, maintenance).
