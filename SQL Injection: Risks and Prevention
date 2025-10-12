@@ -1,0 +1,176 @@
+📘 SQL Injection: Risks and Prevention
+🔹 1. Introduction
+
+SQL Injection (SQLi) is a critical security vulnerability that occurs when unsanitized user input is included in SQL queries, allowing attackers to manipulate queries and access, modify, or delete sensitive data.
+
+One of the top web security threats (OWASP Top 10)
+
+Can occur in dynamic SQL, stored procedures, or ORM-generated queries
+
+Impact: Data leakage, privilege escalation, data corruption, or full system compromise.
+
+🔹 2. How SQL Injection Works
+
+User input is concatenated into SQL query without proper validation.
+
+Attackers inject malicious SQL statements.
+
+SQL Server executes them as part of the query.
+
+🔹 2.1 Example 1: Classic SQL Injection
+-- Vulnerable query
+DECLARE @UserName NVARCHAR(50) = 'admin'; -- user input
+DECLARE @SQL NVARCHAR(MAX);
+
+SET @SQL = 'SELECT * FROM Users WHERE UserName = ''' + @UserName + '''';
+EXEC(@SQL);
+
+
+Attack Input: ' OR 1=1 --
+
+Constructed SQL:
+
+SELECT * FROM Users WHERE UserName = '' OR 1=1 --'
+
+
+Returns all users because 1=1 is always true.
+
+🔹 2.2 Example 2: Dropping a Table
+-- User input
+' ; DROP TABLE Employees; --
+
+
+Can delete critical data if query is directly concatenated.
+
+🔹 3. Common Risk Areas
+
+Dynamic SQL with string concatenation
+
+Web applications accepting user input (forms, URL parameters)
+
+Stored procedures that concatenate parameters
+
+Reporting tools / dashboards using direct SQL input
+
+ORM frameworks that allow raw SQL
+
+🔹 4. Consequences of SQL Injection
+Risk	Impact
+Unauthorized data access	Read sensitive data (users, passwords, credit cards)
+Data corruption or deletion	UPDATE/DELETE/INSERT executed maliciously
+Privilege escalation	Execute commands as admin
+Server compromise	Execute shell commands, exfiltrate data
+Reputation & compliance	GDPR, HIPAA violations, legal issues
+🔹 5. Prevention Strategies
+🔹 5.1 Parameterized Queries / Prepared Statements ✅
+
+Separate code from data
+
+Prevents SQLi because parameters are not executed as code.
+
+-- Safe version
+DECLARE @UserName NVARCHAR(50) = 'admin';
+DECLARE @SQL NVARCHAR(MAX) = N'SELECT * FROM Users WHERE UserName = @UserName';
+
+EXEC sp_executesql @SQL, N'@UserName NVARCHAR(50)', @UserName = @UserName;
+
+
+Important: Always use sp_executesql for dynamic queries with parameters.
+
+🔹 5.2 Use QUOTENAME for Identifiers
+
+Prevent injection when table or column names are dynamic.
+
+DECLARE @TableName NVARCHAR(50) = 'Employees';
+DECLARE @SQL NVARCHAR(MAX);
+
+SET @SQL = 'SELECT * FROM ' + QUOTENAME(@TableName);
+EXEC sp_executesql @SQL;
+
+
+Safely escapes special characters in identifiers.
+
+🔹 5.3 Avoid Direct String Concatenation
+
+Never do:
+
+'SELECT * FROM Users WHERE UserName = ''' + @UserName + ''''
+
+
+Always use parameterization.
+
+🔹 5.4 Validate and Sanitize Input
+
+Only allow expected patterns, e.g., alphanumeric.
+
+Reject or escape special characters (', ;, --, /* */).
+
+IF @UserName LIKE '%[^a-zA-Z0-9]%'
+    RAISERROR('Invalid input', 16, 1);
+
+🔹 5.5 Least Privilege Principle
+
+Database accounts should have minimum permissions.
+
+Avoid using sa or admin accounts in applications.
+
+🔹 5.6 Stored Procedure Best Practices
+
+Use parameters instead of string concatenation.
+
+Avoid dynamic SQL unless necessary.
+
+If dynamic SQL required → parameterize and escape.
+
+🔹 5.7 Additional Measures
+
+Enable application firewalls (WAF)
+
+Regular security audits and penetration tests
+
+Keep SQL Server patched
+
+Use ORM frameworks safely, avoid raw SQL unless parameterized
+
+🔹 6. Safe vs Unsafe Example
+Unsafe	Safe
+'SELECT * FROM Users WHERE UserName = ''' + @UserName + ''''	sp_executesql N'SELECT * FROM Users WHERE UserName = @UserName', N'@UserName NVARCHAR(50)', @UserName=@UserName
+'SELECT * FROM ' + @TableName	'SELECT * FROM ' + QUOTENAME(@TableName)
+EXEC(@SQL) with concatenated user input	EXEC sp_executesql @SQL, @params, @UserInput=@value
+🔹 7. Best Practices Summary
+
+Always parameterize dynamic SQL → use sp_executesql.
+
+Validate input → use regex / allowed patterns.
+
+Escape identifiers → QUOTENAME() for table/column names.
+
+Use least privilege → avoid admin accounts for application access.
+
+Avoid unnecessary dynamic SQL → use static queries when possible.
+
+Monitor & audit → check logs and detect unusual queries.
+
+🔹 8. Interview / Practical Notes
+Question	Answer
+What is SQL Injection?	Exploiting unsanitized input to manipulate SQL queries
+Main risk of dynamic SQL?	Concatenating user input can allow attackers to execute malicious SQL
+How to prevent SQL Injection?	Use parameterized queries (sp_executesql), validate input, escape identifiers
+Role of QUOTENAME()?	Escapes dynamic table/column names to prevent injection
+Principle of least privilege?	Limit DB account permissions to minimize damage in case of attack
+🔹 9. Summary Table
+Risk Area	Example	Prevention
+User input concatenation	SELECT * FROM Users WHERE Name = ' + @Name	Parameterized query
+Dynamic table names	SELECT * FROM ' + @TableName	QUOTENAME(@TableName)
+Stored procedures	Unsafe string concatenation inside SP	Parameterize, avoid EXEC() with user input
+Privilege escalation	Using sa account in app	Least privilege principle
+
+✅ In Summary
+
+SQL Injection is a critical security risk in dynamic SQL and user input queries.
+
+Use parameterized queries, input validation, QUOTENAME, and least privilege to prevent attacks.
+
+Regularly audit and test applications to ensure SQL safety.
+
+For production environments, never trust user input and avoid unsafe dynamic SQL.
