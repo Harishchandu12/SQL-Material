@@ -1,0 +1,244 @@
+🔹 1. What is a View?
+
+Definition:
+A View is a virtual table based on the result set of an SQL query.
+It doesn’t store data physically (by default); it only stores the query definition. When queried, the DBMS executes the underlying SQL and presents the result.
+
+Syntax (Generic):
+
+CREATE VIEW view_name AS
+SELECT column1, column2, ...
+FROM table_name
+WHERE condition;
+
+
+Example:
+
+CREATE VIEW vw_ActiveEmployees AS
+SELECT EmpID, EmpName, Department
+FROM Employees
+WHERE IsActive = 1;
+
+✅ Key Points
+
+Acts like a table in queries (SELECT * FROM view_name).
+
+Data is not stored separately — only the query is.
+
+Useful for abstraction, security, and reusability.
+
+🔹 2. Types of Views
+2.1 Simple View
+
+Based on a single table.
+
+Does not contain group functions, DISTINCT, or aggregate operations.
+
+Can often be updatable (INSERT/UPDATE/DELETE).
+
+Example:
+
+CREATE VIEW vw_DeptDetails AS
+SELECT DeptID, DeptName
+FROM Departments;
+
+
+Updatability Rules:
+
+Must reference only one base table.
+
+Cannot include aggregates, GROUP BY, DISTINCT, UNION, etc.
+
+Must not use derived columns (like AS alias on computed columns).
+
+2.2 Complex View
+
+(Also known as Derived or Non-Updatable View)
+
+Based on multiple tables or includes functions/aggregates/joins.
+
+Usually read-only (unless INSTEAD OF triggers are used).
+
+Example:
+
+CREATE VIEW vw_EmployeeDept AS
+SELECT e.EmpID, e.EmpName, d.DeptName
+FROM Employees e
+JOIN Departments d ON e.DeptID = d.DeptID;
+
+2.3 Indexed View (Materialized View)
+
+Definition:
+An Indexed View is a view where the result set is physically stored and maintained by the database engine using an index.
+
+📌 Also known as Materialized View in Oracle / PostgreSQL.
+
+Benefits:
+
+Improves query performance on large datasets.
+
+Useful for pre-aggregated or pre-joined data.
+
+Data consistency maintained automatically by the DBMS.
+
+Downsides:
+
+Consumes storage space.
+
+Adds overhead on DML (INSERT/UPDATE/DELETE) as the system must maintain the view’s index.
+
+Example (SQL Server):
+
+CREATE VIEW vw_SalesSummary
+WITH SCHEMABINDING AS
+SELECT ProductID, SUM(SalesAmount) AS TotalSales, COUNT_BIG(*) AS SalesCount
+FROM dbo.Sales
+GROUP BY ProductID;
+GO
+
+CREATE UNIQUE CLUSTERED INDEX IX_vw_SalesSummary_ProductID
+ON vw_SalesSummary(ProductID);
+
+
+Example (Oracle):
+
+CREATE MATERIALIZED VIEW mv_SalesSummary
+BUILD IMMEDIATE
+REFRESH FAST
+AS
+SELECT ProductID, SUM(SalesAmount) AS TotalSales
+FROM Sales
+GROUP BY ProductID;
+
+
+Notes:
+
+WITH SCHEMABINDING (SQL Server) ensures schema stability.
+
+Oracle uses Materialized Views with refresh mechanisms (FAST, COMPLETE, ON DEMAND).
+
+2.4 Encrypted View (SQL Server Specific)
+
+Definition:
+An Encrypted View hides the SQL definition from users. The text of the view cannot be seen in system tables or via sp_helptext.
+
+Use Case:
+When you want to protect business logic or prevent view definition exposure.
+
+Syntax:
+
+CREATE VIEW vw_CustomerData
+WITH ENCRYPTION
+AS
+SELECT CustomerID, CustomerName, Email
+FROM Customers;
+
+
+Note:
+
+Cannot retrieve the definition once encrypted.
+
+Always keep a backup script before encrypting.
+
+To check if a view is encrypted:
+
+SELECT OBJECTPROPERTY(OBJECT_ID('vw_CustomerData'), 'IsEncrypted');
+
+🔹 3. Advantages of Using Views
+Purpose	Description
+Security	Restrict user access to specific columns or rows.
+Simplification	Hide complex joins/queries behind a simple interface.
+Data Abstraction	Logical representation of data, independent of schema changes.
+Reusability	Centralize commonly used queries.
+Consistency	Enforce consistent business logic across applications.
+Performance (Indexed Views)	Precompute and store expensive aggregations or joins.
+
+🔹 4. Disadvantages / Limitations
+
+Performance overhead (for non-indexed views).
+
+Some views are not updatable (especially complex ones).
+
+Encrypted views cannot be scripted back easily.
+
+Indexed views require schema binding and add maintenance cost.
+
+Dependency issues if underlying tables change.
+
+🔹 5. Updatable Views
+
+A view is updatable when:
+
+It references only one base table.
+
+Does not include aggregates, DISTINCT, GROUP BY, UNION, subqueries.
+
+Does not use computed columns.
+
+Example:
+
+CREATE VIEW vw_EmployeeBasic AS
+SELECT EmpID, EmpName, Salary
+FROM Employees;
+
+UPDATE vw_EmployeeBasic
+SET Salary = Salary + 1000
+WHERE EmpID = 101;
+
+
+In SQL Server:
+You can use INSTEAD OF triggers to make a non-updatable view updatable.
+
+🔹 6. Dropping and Modifying Views
+
+Drop View:
+
+DROP VIEW vw_ActiveEmployees;
+
+
+Modify (Replace) View:
+
+ALTER VIEW vw_ActiveEmployees AS
+SELECT EmpID, EmpName, Department, JoinDate
+FROM Employees
+WHERE IsActive = 1;
+
+🔹 7. Performance Considerations
+
+Views do not always improve performance; they may actually add an extra query layer.
+
+Use Indexed/Materialized Views for heavy aggregation or joins.
+
+Avoid nesting views (views inside views) — can degrade performance.
+
+Always test query plans using EXPLAIN, SHOWPLAN, or AUTOTRACE.
+
+🔹 8. Comparison Summary
+Type	Stored Physically	Updatable	Performance	Use Case
+Simple View	❌ No	✅ Yes	Normal	Data abstraction
+Complex View	❌ No	❌ No	Normal	Joins/aggregations
+Indexed View (Materialized)	✅ Yes	❌ No	✅ Fast	Precomputed aggregates
+Encrypted View	❌ No	✅/❌	Normal	Hide logic for security
+🔹 9. Best Practices
+
+Always name views with a prefix, e.g., vw_ (SQL convention).
+
+For reporting, prefer indexed/materialized views.
+
+Regularly refresh materialized views if using Oracle/PostgreSQL.
+
+Keep view logic simple — avoid multi-level nesting.
+
+Use schemabinding in SQL Server to prevent accidental changes.
+
+🔹 10. Interview / Real-world Tips
+
+Be ready to explain how views differ from tables and materialized views.
+
+Know when to use Indexed vs Non-indexed views.
+
+Be able to demonstrate creating an INSTEAD OF trigger for updating complex views.
+
+Understand performance implications and maintenance trade-offs.
+
+Know how encryption protects business logic.
