@@ -1,0 +1,192 @@
+🧠 Clustering Basics – SQL Server & Windows Server
+🔹 1. What is Clustering?
+
+Clustering is a high-availability (HA) technology that allows multiple servers (nodes) to work together as a single system to provide continuous availability of services.
+
+In SQL Server, clustering is typically used for failover clustering, where if one node fails, another node automatically takes over with minimal downtime.
+
+Definition:
+
+A cluster is a group of independent servers (nodes) that appear to clients as a single system, ensuring high availability for applications or databases.
+
+🔹 2. Why Use Clustering?
+Purpose	Description
+High Availability (HA)	Ensure SQL Server services remain available even if a server fails.
+Automatic Failover	If the primary node fails, another node takes over automatically.
+Minimized Downtime	Helps maintain business continuity.
+Centralized Management	Nodes can be managed as part of a cluster rather than individually.
+🔹 3. Types of Clustering
+Type	Description	Use Case
+Failover Cluster	Multiple nodes share the same storage; if primary fails, another node takes over.	Mission-critical SQL Server databases
+Load Balancing Cluster (NLB)	Distributes client requests across multiple nodes for performance.	Web servers or application servers
+Always On AG Clustering	Uses Windows Server Failover Clustering (WSFC) to support AGs.	HA + DR for multiple databases
+
+Note: In SQL Server, clustering is primarily about Failover Clustering.
+
+🔹 4. Key Components of a SQL Server Failover Cluster
+Component	Description
+Cluster Node	Individual server participating in the cluster.
+Cluster Resource	Services or applications managed by the cluster (e.g., SQL Server instance).
+Shared Storage	Storage accessible to all nodes (SAN, iSCSI) for database files.
+Cluster Network Name & IP	Virtual server name and IP that clients connect to.
+Heartbeat	Communication between nodes to detect failures.
+Quorum	Mechanism to prevent split-brain scenario by determining cluster majority.
+Cluster Architecture Diagram
++-----------------+       +-----------------+
+| Node 1 (Active) |       | Node 2 (Passive)|
+|   SQL Instance  |       |   SQL Instance  |
++--------+--------+       +--------+--------+
+         |                         |
+         |         Shared Storage  |
+         +-------------------------+
+                 (SAN / iSCSI)
+
+
+Active Node: Serving client requests
+
+Passive Node: Standby, ready to take over if active fails
+
+🔹 5. How Failover Works
+
+Heartbeat Monitoring
+Nodes continuously monitor each other via a heartbeat network.
+
+Failure Detection
+If the active node fails (hardware/software), the cluster detects the failure.
+
+Failover Initiation
+The passive node takes control of cluster resources, including SQL Server instance and IP address.
+
+Client Reconnection
+Clients reconnect to the virtual cluster name/IP automatically.
+
+🔹 6. Prerequisites for SQL Server Failover Cluster
+
+✅ Windows Server Enterprise/Standard edition with Failover Clustering feature installed
+✅ Multiple servers (nodes) connected via reliable network
+✅ Shared storage accessible to all nodes (SAN/iSCSI/NAS)
+✅ SQL Server Enterprise or Standard edition supporting FCI (Failover Cluster Instance)
+✅ Proper domain accounts and permissions for SQL Server services
+✅ Cluster Quorum configured (Node Majority / Node + Disk / Node + File Share)
+
+🔹 7. Steps to Configure SQL Server Failover Cluster (Simplified)
+
+Install Windows Failover Cluster Feature
+
+Server Manager → Add Roles and Features → Failover Clustering
+
+Validate Cluster Configuration
+
+Run Validate a Configuration Wizard in Failover Cluster Manager
+
+Create Windows Cluster
+
+Add nodes, assign cluster name and IP
+
+Configure quorum
+
+Install SQL Server as Clustered Instance
+
+During SQL Server setup:
+
+Choose New SQL Server failover cluster installation
+
+Provide virtual SQL instance name
+
+Select shared storage for data and log files
+
+Specify service accounts
+
+Verify Cluster
+
+Use Failover Cluster Manager → Nodes and Roles
+
+Test failover by moving SQL instance to passive node
+
+🔹 8. Example Scenario
+
+Scenario:
+
+You have 2 SQL Servers (Node1, Node2) connected to a SAN.
+
+Goal: Ensure SQL Server instance remains available if Node1 fails.
+
+Steps:
+
+Configure Windows Failover Cluster with Node1 and Node2.
+
+Assign cluster name: SQLCluster01 with virtual IP 192.168.1.50.
+
+Install SQL Server as Clustered Instance, storing MDF and LDF on SAN.
+
+Clients connect to SQLCluster01.
+
+Failover:
+
+If Node1 goes down, Node2 takes over automatically.
+
+Clients continue connecting to SQLCluster01 with minimal downtime.
+
+🔹 9. Benefits of Clustering
+Benefit	Description
+High Availability	Automatic failover ensures minimal downtime.
+Single Point of Connection	Clients connect to cluster name instead of physical servers.
+Centralized Management	Nodes and SQL instance managed centrally.
+Reduced Downtime	Planned and unplanned failovers are quick.
+Supports Mission-Critical Workloads	Recommended for production databases requiring SLA.
+🔹 10. Limitations / Considerations
+
+❌ Requires shared storage for SQL Server FCI
+❌ Only one active node per instance (passive nodes idle)
+❌ Hardware and SAN reliability critical
+❌ Licensing costs can be high (SQL Server Enterprise + multiple nodes)
+❌ Cross-database transactions across clusters not supported
+❌ Setup complexity requires careful planning
+
+🔹 11. Monitoring and Maintenance
+
+Failover Cluster Manager: Monitor nodes, roles, and events
+
+Cluster Logs: Get-ClusterLog cmdlet for detailed logs
+
+SQL Server Error Logs: Monitor SQL instance failovers
+
+Test Failover: Periodically move instance to passive node
+
+Patch Management: Apply SQL/OS patches sequentially to minimize downtime
+
+🔹 12. Example: Checking Cluster Status (PowerShell)
+# Check cluster nodes
+Get-ClusterNode
+
+# Check cluster roles (SQL instance)
+Get-ClusterGroup
+
+# Check cluster resource status
+Get-ClusterResource
+
+🔹 13. Common Interview Questions
+Question	Answer
+What is a cluster?	Group of servers working together as a single system for HA.
+Difference between clustering and log shipping?	Clustering provides automatic failover; log shipping is manual.
+What is a passive node?	Standby node waiting to take over if active fails.
+What type of storage is required for SQL FCI?	Shared storage (SAN/iSCSI).
+Can clients connect directly to passive node?	No, they connect via virtual cluster name.
+What is quorum?	Mechanism to avoid split-brain by determining cluster majority.
+Difference between SQL Server AG and Clustered Instance?	AG is database-level HA, can use multiple replicas; FCI is instance-level HA with shared storage.
+Can clustering protect against site-level failure?	Not alone; requires geographically dispersed clusters or AGs with asynchronous mode.
+What is heartbeat in clustering?	Network communication between nodes to detect failures.
+How many active nodes per clustered instance?	One active node; others are passive standby.
+🔹 14. Key Takeaways
+
+Clustering = instance-level HA, ensures SQL Server availability.
+
+Single active node with passive nodes ready for failover.
+
+Shared storage is mandatory for SQL Server Failover Cluster Instances (FCI).
+
+Windows Server Failover Clustering (WSFC) manages failover, quorum, and health checks.
+
+Best for mission-critical, on-prem SQL Server environments.
+
+Works well in combination with Always On AG for database-level replication + instance-level HA.
