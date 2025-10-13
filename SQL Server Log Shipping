@@ -1,0 +1,286 @@
+🧠 SQL Server Log Shipping 
+🔹 1. What is Log Shipping?
+
+Log Shipping is a disaster recovery (DR) and high-availability (HA) technique in SQL Server that involves:
+
+Automatically backing up the transaction log from a primary database,
+copying it to one or more secondary servers, and
+restoring it there at regular intervals.
+
+It provides a warm standby database that can be brought online quickly in case of a primary server failure.
+
+🔹 2. Why Use Log Shipping?
+Purpose	Description
+Disaster Recovery	Maintain a standby copy of a production database.
+Reporting / Read-Only	Use secondary server for reporting (with standby mode).
+Offload Backups	Reduce load on primary by performing restores/verification elsewhere.
+Data Protection	Secondary can act as backup in case of corruption or loss.
+🔹 3. Key Components of Log Shipping
+Component	Description
+Primary Server (Source)	The main production database where backups are created.
+Secondary Server (Target)	The standby database that receives and restores log backups.
+Monitor Server (Optional)	Tracks and reports the status of log shipping across servers.
+Backup Job	Creates transaction log backups on the primary server.
+Copy Job	Copies backup files to the secondary server.
+Restore Job	Restores the copied backups onto the secondary database.
+Architecture Diagram
+   [Primary Server]
+        ↓  (Transaction Log Backup Job)
+   [Backup Folder / Share]
+        ↓  (Copy Job)
+   [Secondary Server(s)]
+        ↓  (Restore Job)
+   [Monitor Server] ← (Status Reporting)
+
+🔹 4. How Log Shipping Works (Process Flow)
+
+Transaction Log Backup
+
+SQL Server Agent job on the primary takes transaction log backups periodically.
+
+Example: every 5 or 10 minutes.
+
+Copy Log Backup
+
+Backup files are copied to the secondary server(s) using a shared folder or UNC path.
+
+Restore Log Backup
+
+Secondary server restores the logs in sequence using either:
+
+NORECOVERY mode (for warm standby)
+
+STANDBY mode (read-only mode for reporting)
+
+Monitoring (optional)
+
+A monitor server checks job statuses, delays, and alerts for failures.
+
+🔹 5. Prerequisites for Log Shipping
+
+✅ Both primary and secondary servers must have:
+
+Same version and edition of SQL Server (preferably)
+
+Same database name
+
+Full recovery model enabled on the primary database
+
+Proper network connectivity (shared folder for backup copy)
+
+SQL Server Agent running on both servers
+
+Check and Enable Full Recovery Model
+ALTER DATABASE SalesDB SET RECOVERY FULL;
+
+🔹 6. Steps to Configure Log Shipping (via SSMS GUI)
+
+Step 1:
+On the Primary Server, right-click the database → Properties → Transaction Log Shipping.
+
+Step 2:
+Check “Enable this as a primary database in a log shipping configuration.”
+
+Step 3:
+Configure the Backup Settings:
+
+Path to store transaction log backups (e.g., \\BackupServer\LogShip\)
+
+Backup schedule (e.g., every 10 minutes)
+
+Retention period
+
+Step 4:
+Add Secondary Server(s):
+
+Provide server name and authentication
+
+Specify restore mode:
+
+No Recovery Mode (cannot read secondary)
+
+Standby Mode (read-only reporting possible)
+
+Define copy and restore schedules
+
+Step 5:
+(Optional) Add Monitor Server to track status and send alerts.
+
+Step 6:
+Click OK — SQL Server automatically creates:
+
+Backup job (on Primary)
+
+Copy job (on Secondary)
+
+Restore job (on Secondary)
+
+🔹 7. Configuring Log Shipping Using T-SQL
+Step 1: Enable Log Shipping on the Primary Database
+EXEC master.dbo.sp_add_log_shipping_primary_database
+    @database = N'SalesDB',
+    @backup_directory = N'\\BackupServer\LogShip\',
+    @backup_share = N'\\BackupServer\LogShip\',
+    @backup_job_name = N'LSBackup_SalesDB',
+    @backup_retention_period = 1440, -- minutes
+    @backup_threshold = 60,
+    @threshold_alert_enabled = 1;
+
+Step 2: Add the Secondary Server
+EXEC master.dbo.sp_add_log_shipping_secondary_primary
+    @primary_server = N'PrimaryServer',
+    @primary_database = N'SalesDB',
+    @backup_source_directory = N'\\BackupServer\LogShip\',
+    @backup_destination_directory = N'D:\LogShipping\',
+    @copy_job_name = N'LSCopy_SalesDB',
+    @restore_job_name = N'LSRestore_SalesDB',
+    @secondary_server = N'SecondaryServer',
+    @secondary_database = N'SalesDB';
+
+Step 3: Add Restore Settings
+EXEC master.dbo.sp_add_log_shipping_secondary_database
+    @secondary_database = N'SalesDB',
+    @restore_delay = 0,
+    @restore_mode = 1,  -- 0 = NoRecovery, 1 = Standby
+    @disconnect_users = 1,
+    @restore_threshold = 45,
+    @threshold_alert_enabled = 1;
+
+Step 4: Verify Configuration
+EXEC master.dbo.sp_help_log_shipping_monitor;
+
+🔹 8. Log Shipping Modes
+Mode	Description	Use Case
+No Recovery	Database cannot be accessed; used purely for DR	Fast failover
+Standby / Read-Only	Allows read-only access between log restores	Reporting queries
+Disconnected	Copy-only mode (no restore yet configured)	For delayed DR setup
+🔹 9. Failover Process
+
+In case the Primary Server fails:
+
+Ensure all transaction logs are restored on the secondary.
+
+Bring the secondary database online:
+
+RESTORE DATABASE SalesDB WITH RECOVERY;
+
+
+Point applications or users to the secondary server.
+
+⚠️ Note:
+Log shipping does not automatically failover — it requires manual intervention (unlike Always On Availability Groups).
+
+🔹 10. Reinitialization After Failover
+
+After primary server is restored or replaced:
+
+Reconfigure log shipping with the new primary.
+
+Reinitialize the secondary by taking a new full backup and restoring it with NORECOVERY.
+
+🔹 11. Monitoring Log Shipping
+Using SSMS
+
+Expand Management → Log Shipping Status
+
+View Last Backup, Copy, Restore Time, and Latency
+
+Using T-SQL
+-- Monitor all log shipping configurations
+EXEC msdb.dbo.sp_help_log_shipping_monitor_primary;
+
+-- View backup history
+SELECT * FROM msdb.dbo.log_shipping_monitor_history_detail;
+
+-- View restore status
+SELECT * FROM msdb.dbo.log_shipping_monitor_secondary;
+
+🔹 12. Example: Log Shipping for Reporting Server
+
+Scenario:
+Your OLTP database (SalesDB) runs 24/7. You need to offload reporting queries to another server.
+
+Solution:
+
+Configure log shipping with Standby mode.
+
+Schedule backups every 10 minutes.
+
+Run reports on the secondary between restores.
+
+Restore job setting:
+
+@restore_mode = 1,  -- STANDBY
+
+
+✅ Allows read-only access between log restore intervals.
+🚫 Users are automatically disconnected when restore runs.
+
+🔹 13. Advantages of Log Shipping
+
+✅ Easy to set up and manage
+✅ Low-cost DR solution (included with Standard Edition)
+✅ Multiple secondaries supported
+✅ Can offload reporting workloads
+✅ Automatic scheduling via SQL Agent
+✅ Flexible backup/copy/restore timing
+
+🔹 14. Disadvantages / Limitations
+
+❌ Manual failover (not automatic)
+❌ Potential data loss (last few unshipped logs)
+❌ Secondary is read-only or offline
+❌ Each secondary must restore logs in order
+❌ No automatic synchronization of jobs, logins, or users
+❌ Network dependency for file copy
+
+🔹 15. Best Practices
+
+✅ Use UNC paths for backup sharing
+✅ Configure monitor server for alerting
+✅ Use standby mode if read-only access needed
+✅ Schedule backup/copy/restore jobs with small intervals (e.g., 10 mins)
+✅ Compress log backups to save bandwidth
+✅ Keep system time synchronized across servers
+✅ Regularly test manual failover
+✅ Monitor job history and restore delays
+✅ Automate alerts for missing backups
+
+🔹 16. Common Log Shipping Errors & Fixes
+Error	Cause	Solution
+“Could not apply log backup”	Backup missing or out of sequence	Verify backup file order
+“Restore failed due to users connected”	Database in standby mode with users	Use @disconnect_users = 1
+“Copy job failed”	Network issue or permission denied	Check share permissions
+“Backup not found”	Job delay or file deleted	Adjust retention or schedule
+“Monitor out of sync”	Agent job failure	Restart log shipping jobs
+🔹 17. Interview Questions (4+ Years Level)
+Question	Short Answer
+What is Log Shipping?	DR technique that copies transaction logs to secondary servers.
+What are the main components?	Primary, Secondary, Monitor, Backup/Copy/Restore jobs.
+Does log shipping support automatic failover?	No, it’s manual.
+Which recovery model is required?	Full or Bulk-logged.
+Can you have multiple secondaries?	Yes, log shipping supports multiple secondary servers.
+What’s the difference between NORECOVERY and STANDBY mode?	NORECOVERY = cannot read; STANDBY = read-only between restores.
+How often should log backups be scheduled?	Depends on RPO/RTO; typically 5–15 minutes.
+Can log shipping be used for read-only reporting?	Yes, in STANDBY mode.
+What happens if a transaction log file is missing?	You must reinitialize log shipping.
+How do you monitor log shipping?	Using SSMS or system stored procedures like sp_help_log_shipping_monitor.
+🔹 18. Comparison: Log Shipping vs. Other HA Solutions
+Feature	Log Shipping	Database Mirroring	Always On AG
+Failover	Manual	Automatic (in High Safety mode)	Automatic
+Read-Only Secondary	Yes (Standby)	Yes (in Enterprise)	Yes
+Setup Complexity	Low	Medium	High
+Data Loss Risk	Low (depends on frequency)	Minimal	Minimal
+Edition Support	Standard / Enterprise	Deprecated	Enterprise
+Use Case	DR, Reporting	HA	HA + DR
+🏁 Key Takeaways
+
+Log Shipping provides a low-cost disaster recovery solution using transaction log backups.
+
+It can be configured in standby mode for read-only reporting.
+
+Failover is manual, but setup is simple and reliable.
+
+Regular monitoring and testing are essential to ensure integrity.
+
+Ideal for mid-sized environments needing basic HA/DR without advanced features like Always On.
