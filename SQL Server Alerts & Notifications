@@ -1,0 +1,257 @@
+🧠 SQL Server Alerts & Notifications 
+🔹 1. Overview
+What Are Alerts and Notifications?
+
+SQL Server Alerts and Notifications are features provided by SQL Server Agent to automatically monitor, detect, and respond to specific conditions or events within SQL Server.
+
+They help DBAs proactively manage server health, performance, and failures — instead of reacting after issues occur.
+
+🔹 2. Core Concepts
+Component	Description
+Alert	A SQL Server Agent object that monitors specific events or performance conditions and triggers an action.
+Notification	The mechanism (usually email) by which SQL Server Agent informs users/operators of the alert or job outcome.
+Operator	A person or group (with email address) that receives notifications for alerts or job events.
+🔹 3. Why Alerts & Notifications Are Important
+
+✅ Early detection of database issues (e.g., disk space low, SQL errors).
+✅ Automatic response — can trigger jobs (e.g., backup, cleanup).
+✅ Keeps DBA informed of job failures, deadlocks, or resource issues.
+✅ Reduces downtime and improves reliability.
+
+🔹 4. Prerequisites
+
+Before configuring alerts or notifications, ensure:
+
+SQL Server Agent Service is running.
+
+Database Mail is configured and enabled.
+
+SQL Server Agent is configured to use Database Mail for notifications.
+
+SSMS → SQL Server Agent → Properties → Alert System → Enable “Mail Profile”.
+
+🔹 5. Step-by-Step: Configuring Alerts & Notifications
+
+Let’s go step-by-step through a practical setup.
+
+🧩 Step 1: Configure Database Mail (Once per Server)
+-- Create Database Mail account
+EXEC msdb.dbo.sysmail_add_account_sp
+    @account_name = 'SQLMailAccount',
+    @description  = 'Mail account for SQL Server Agent',
+    @email_address = 'sqlagent@company.com',
+    @display_name  = 'SQL Server Agent',
+    @mailserver_name = 'smtp.company.com';
+
+-- Create Database Mail profile
+EXEC msdb.dbo.sysmail_add_profile_sp
+    @profile_name = 'SQLMailProfile',
+    @description  = 'Mail profile for SQL Server Agent notifications';
+
+-- Add the account to the profile
+EXEC msdb.dbo.sysmail_add_profileaccount_sp
+    @profile_name = 'SQLMailProfile',
+    @account_name = 'SQLMailAccount',
+    @sequence_number = 1;
+
+-- Grant access to the SQL Agent service
+EXEC msdb.dbo.sysmail_add_principalprofile_sp
+    @profile_name = 'SQLMailProfile',
+    @principal_name = 'public',
+    @is_default = 1;
+
+
+Then enable Database Mail in SQL Server Agent Properties → Alert System → check “Enable mail profile”.
+
+🧩 Step 2: Create an Operator
+
+Operators are recipients for alerts and notifications.
+
+EXEC msdb.dbo.sp_add_operator
+    @name = N'DBA_Team',
+    @enabled = 1,
+    @email_address = N'dba_team@company.com';
+
+🧩 Step 3: Create an Alert
+
+Alerts can be based on:
+
+SQL Server error number
+
+Severity level
+
+Performance condition (WMI or perf counter)
+
+Event description (message text)
+
+🧠 Example 1: Alert for SQL Severity Level
+
+👉 Create alert for any Severity 17 (Insufficient resources) error.
+
+EXEC msdb.dbo.sp_add_alert
+    @name = N'Resource Shortage Alert',
+    @message_id = 0,               -- 0 = not tied to a specific error number
+    @severity = 17,                -- Severity 17 = resource-related error
+    @enabled = 1,
+    @delay_between_responses = 300, -- 5 minutes
+    @include_event_description_in = 1,
+    @notification_message = 'Database resource issue detected on the server',
+    @job_id = NULL;
+
+
+Attach an operator:
+
+EXEC msdb.dbo.sp_add_notification
+    @alert_name = N'Resource Shortage Alert',
+    @operator_name = N'DBA_Team',
+    @notification_method = 1;  -- 1 = Email, 2 = Pager, 4 = Net Send
+
+🧠 Example 2: Alert for Specific SQL Error Number
+
+👉 Example: Alert for Error 823 (I/O subsystem read/write failure).
+
+EXEC msdb.dbo.sp_add_alert
+    @name = N'Disk I/O Error Alert',
+    @message_id = 823,
+    @severity = 0,
+    @enabled = 1,
+    @include_event_description_in = 1,
+    @notification_message = 'Critical I/O subsystem error detected. Check disks immediately!';
+
+
+Attach the same operator:
+
+EXEC msdb.dbo.sp_add_notification
+    @alert_name = N'Disk I/O Error Alert',
+    @operator_name = N'DBA_Team',
+    @notification_method = 1;
+
+🧠 Example 3: Performance Condition Alert (Low Disk Space)
+
+👉 Create alert if free disk space on C: drops below 15%.
+
+EXEC msdb.dbo.sp_add_alert
+    @name = N'Low Disk Space - C Drive',
+    @performance_condition = N'SQLServer:Databases|Free Space (MB)|C:|<|15000',
+    @enabled = 1,
+    @include_event_description_in = 1;
+
+
+Attach operator:
+
+EXEC msdb.dbo.sp_add_notification
+    @alert_name = N'Low Disk Space - C Drive',
+    @operator_name = N'DBA_Team',
+    @notification_method = 1;
+
+🧩 Step 4: Configure Job Failure Notifications
+
+To receive an email when a SQL Agent Job fails:
+
+Option 1: SSMS GUI
+
+Right-click job → Properties → Notifications →
+Check “Email” on “When the job fails” → Select operator.
+
+Option 2: T-SQL
+EXEC msdb.dbo.sp_update_job
+    @job_name = N'Nightly ETL - Load FactSales',
+    @notify_level_email = 2,  -- 1=Success, 2=Failure, 3=Completion
+    @notify_email_operator_name = N'DBA_Team';
+
+🔹 6. Viewing and Managing Alerts
+Task	T-SQL Command
+View all alerts	EXEC msdb.dbo.sp_help_alert;
+Disable an alert	EXEC msdb.dbo.sp_update_alert @name='AlertName', @enabled=0;
+Delete an alert	EXEC msdb.dbo.sp_delete_alert @name='AlertName';
+View notifications	SELECT * FROM msdb.dbo.sysnotifications;
+🔹 7. System Alert Categories (Useful for Monitoring)
+Severity	Type	Description
+10	Informational	No action needed
+11–16	User errors	Application-level issues
+17	Insufficient resources	Memory, disk, I/O
+18	Non-fatal internal errors	Server problem, DBA attention needed
+19	Fatal error in resource	Serious issue, connection terminated
+20–25	Fatal system errors	Data corruption, disk failure
+
+Common alerts DBAs configure:
+
+Error 823/824/825 → Disk I/O warnings
+
+Severity 17–25 → Resource/system issues
+
+Error 9002 → Transaction log full
+
+Error 208 → Invalid object name (missing object in code)
+
+🔹 8. Best Practices
+
+✅ Set up a generic DBA operator (DBA_Team) instead of personal emails.
+✅ Configure Database Mail via a service account, not a personal mailbox.
+✅ Avoid too frequent alerts — use @delay_between_responses wisely.
+✅ Always test alerts by generating the event manually (e.g., divide by zero error).
+✅ Store alert and job notification logs in a central repository.
+✅ Combine with SQL Server Policy-Based Management for enterprise monitoring.
+
+🔹 9. Example: End-to-End Scenario
+
+Scenario:
+You want to get notified when:
+
+A job fails.
+
+Transaction log is full (Error 9002).
+
+Solution Summary:
+
+Configure Database Mail and operator.
+
+Create alert for Error 9002.
+
+Configure job notification for failures.
+
+Example:
+
+EXEC sp_add_alert
+    @name = N'Transaction Log Full',
+    @message_id = 9002,
+    @enabled = 1,
+    @notification_message = 'Transaction log full - check log space or backup log!';
+
+EXEC sp_add_notification
+    @alert_name = N'Transaction Log Full',
+    @operator_name = N'DBA_Team',
+    @notification_method = 1;
+
+
+Now, whenever SQL Server raises error 9002, SQL Agent will:
+
+Capture the event,
+
+Log it in msdb,
+
+Send an email notification to DBA_Team.
+
+🔹 10. Monitoring Alerts
+
+To verify alert triggering:
+
+SQL Server Agent → Error Logs → View Alert History
+
+msdb tables:
+
+SELECT name, last_occurrence_date, last_occurrence_time
+FROM msdb.dbo.sysalerts
+ORDER BY last_occurrence_date DESC;
+
+🏁 Key Takeaways
+
+Alerts monitor server or database events (errors, performance, etc.).
+
+Notifications inform operators via email/pager/net send.
+
+They rely on Database Mail and SQL Server Agent.
+
+DBAs use them for proactive issue management (disk full, failed backups, etc.).
+
+Essential for 24/7 production support and high-availability systems.
