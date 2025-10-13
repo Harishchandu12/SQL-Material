@@ -1,0 +1,292 @@
+🧠 SQL Server Always On Availability Groups (AGs)
+🔹 1. Overview
+
+Always On Availability Groups (AGs) is an enterprise-level High Availability (HA) and Disaster Recovery (DR) feature introduced in SQL Server 2012.
+
+It allows you to group multiple user databases (called availability databases) together to replicate and failover as a single unit between multiple servers (replicas).
+
+Definition:
+
+Always On Availability Groups provide high availability, automatic failover, and disaster recovery for a set of user databases, known as availability databases, that fail over together as a single unit.
+
+🔹 2. Key Features
+Feature	Description
+High Availability	Automatic or manual failover between replicas
+Disaster Recovery	Asynchronous replication to remote sites
+Multiple Databases	Failover a group of databases together
+Read-Only Replicas	Offload read workloads (reporting, queries)
+Backup Offloading	Perform backups on secondary replicas
+Automatic Page Repair	Corrupt pages on primary automatically repaired using secondary replica
+Listener	Single Virtual Network Name (VNN) for client connections
+Supports Windows Failover Cluster (WSFC)	AGs are built on top of WSFC for failover management
+🔹 3. Components of Availability Groups
+Component	Description
+Availability Group	Logical container of one or more databases replicated as a single unit.
+Primary Replica	The read-write copy of the databases.
+Secondary Replica(s)	Copies that receive transaction log updates from the primary.
+Availability Database	Individual user database participating in an AG.
+Availability Replica	Each instance (primary or secondary) hosting a copy of the databases.
+Availability Group Listener	Virtual network name (DNS) that clients use to connect transparently to the AG.
+Windows Server Failover Cluster (WSFC)	Manages health detection and automatic failover.
+AG Architecture Diagram
+          +------------------------+
+          |   Windows Failover     |
+          |   Cluster (WSFC)       |
+          +-----------+------------+
+                      |
+       +--------------+---------------+
+       |                              |
+[Primary Replica]              [Secondary Replica]
+(SQL Instance A)               (SQL Instance B)
+   |  Read/Write                 | Read-only (optional)
+   |  Sync/Async Log Blocks ---> |
+   |                             |
+   +---> [AG Listener] <---------+
+
+🔹 4. Availability Modes
+Mode	Description	Typical Use Case
+Synchronous Commit	Primary waits for acknowledgment from secondary before committing transaction. Zero data loss, but slightly slower.	High availability within same data center.
+Asynchronous Commit	Primary does not wait for acknowledgment. Possible data loss if primary fails.	Disaster recovery (cross-site).
+Automatic vs Manual Failover
+Failover Type	Requirements	Description
+Automatic	Synchronous commit + failover partner healthy	Fast and transparent failover
+Manual	Any mode	Admin-initiated via SSMS or T-SQL
+🔹 5. Prerequisites
+
+✅ SQL Server Enterprise Edition (Standard supports limited Basic AGs)
+✅ Windows Server Failover Cluster (WSFC) configured
+✅ Shared domain accounts for SQL Server services
+✅ Full recovery model on databases
+✅ Database backups (full + log) taken before adding to AG
+✅ Proper networking and DNS setup
+
+🔹 6. Creating an Always On Availability Group (via SSMS)
+Step-by-Step:
+
+Enable Always On on each node
+
+In SQL Server Configuration Manager → SQL Server Services →
+Right-click instance → Properties → Always On High Availability → Enable Always On Availability Groups.
+
+Create a Windows Failover Cluster
+
+Using Failover Cluster Manager in Windows.
+
+Take Full + Log Backups of all databases to be included.
+
+In SSMS:
+
+Expand Always On High Availability → New Availability Group Wizard
+
+Enter AG Name (e.g., AG_SalesDB)
+
+Select Databases
+
+Add Replicas (Primary + Secondary servers)
+
+Choose Synchronization mode: Sync/Async
+
+Configure readable secondaries (Yes/No)
+
+Create a Listener (optional)
+
+Finish the wizard.
+
+Verify AG creation in SSMS → Always On High Availability → Availability Groups.
+
+🔹 7. Example T-SQL Commands
+Step 1: Create the Availability Group
+CREATE AVAILABILITY GROUP [AG_SalesDB]
+FOR DATABASE [SalesDB]
+REPLICA ON 
+    N'PrimaryServer' WITH (
+        ENDPOINT_URL = 'TCP://PrimaryServer:5022',
+        AVAILABILITY_MODE = SYNCHRONOUS_COMMIT,
+        FAILOVER_MODE = AUTOMATIC,
+        SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY)
+    ),
+    N'SecondaryServer' WITH (
+        ENDPOINT_URL = 'TCP://SecondaryServer:5022',
+        AVAILABILITY_MODE = SYNCHRONOUS_COMMIT,
+        FAILOVER_MODE = AUTOMATIC,
+        SECONDARY_ROLE (ALLOW_CONNECTIONS = READ_ONLY)
+    );
+GO
+
+Step 2: Join Database on Secondary Replica
+ALTER DATABASE [SalesDB] SET HADR AVAILABILITY GROUP = [AG_SalesDB];
+
+Step 3: Create a Listener
+CREATE AVAILABILITY GROUP LISTENER [AGListener]
+WITH (
+    DNS_NAME = N'AGListener',
+    PORT = 1433
+)
+FOR AVAILABILITY GROUP = [AG_SalesDB];
+
+🔹 8. Reading from Secondary Replica
+
+If read access is enabled:
+
+SELECT * FROM sys.dm_hadr_availability_replica_states;
+
+
+Connection string example:
+
+Server=AGListener;Database=SalesDB;ApplicationIntent=ReadOnly;
+
+
+This directs read-only traffic to readable secondaries.
+
+🔹 9. Performing Failover
+Automatic Failover:
+
+Occurs when:
+
+Both replicas are in synchronous commit mode
+
+Secondary is synchronized
+
+WSFC detects primary failure
+
+Manual Failover (T-SQL):
+ALTER AVAILABILITY GROUP [AG_SalesDB] FAILOVER;
+
+🔹 10. Monitoring Availability Groups
+Method	Description
+SSMS Dashboard	Under Always On High Availability → Dashboard
+DMVs	Dynamic Management Views (see below)
+Failover Cluster Manager	Monitor node health and failovers
+SQL Agent Alerts	Configure alerts for role changes and synchronization failures
+Example DMV Queries
+-- Check replica state
+SELECT ag.name, ar.replica_server_name, ars.role_desc, ars.synchronization_state_desc
+FROM sys.availability_groups ag
+JOIN sys.availability_replicas ar ON ag.group_id = ar.group_id
+JOIN sys.dm_hadr_availability_replica_states ars ON ar.replica_id = ars.replica_id;
+
+-- Check database synchronization
+SELECT database_name, synchronization_state_desc
+FROM sys.dm_hadr_database_replica_states;
+
+🔹 11. Backup and Maintenance
+
+Backups can be performed on secondary replicas (offload workload).
+
+Configure backup preference in AG properties:
+
+Primary only
+
+Secondary only
+
+Prefer secondary
+
+Any replica
+
+Example:
+
+SELECT * FROM sys.fn_hadr_backup_is_preferred_replica('SalesDB');
+
+🔹 12. Automatic Page Repair
+
+If a page corruption occurs on the primary:
+
+Primary requests a clean copy from secondary.
+
+Secondary sends the clean page.
+
+Primary automatically repairs the page.
+
+✅ Reduces downtime caused by page-level corruption.
+
+🔹 13. Benefits of Always On AGs
+Benefit	Description
+Automatic Failover	Fast and seamless failover with no data loss (synchronous).
+Multiple Secondaries	Up to 8 replicas (1 primary + 7 secondary).
+Readable Secondaries	Read-only queries for reporting, ETL.
+No Shared Storage Needed	Replication is at database level, no shared disks required.
+Offload Backups	Backups can be done on secondary replicas.
+Automatic Page Repair	Self-healing mechanism for page corruption.
+🔹 14. Limitations
+
+❌ Requires Windows Failover Cluster (WSFC).
+❌ Only user databases supported (no system DBs).
+❌ All databases in AG must use Full Recovery Model.
+❌ Cross-database transactions within AG are not fully supported for failover.
+❌ Requires Enterprise Edition for multiple replicas.
+❌ Some latency in asynchronous mode (possible data loss).
+
+🔹 15. Real-World Example Scenario
+
+Scenario:
+A financial institution needs 24×7 availability for its production database.
+
+Solution:
+
+Configure Always On AG with:
+
+Primary Replica (DataCenter1)
+
+Synchronous Secondary (for HA within DC1)
+
+Asynchronous Secondary (for DR in DC2)
+
+Create an AG Listener for transparent client connection.
+
+Use Automatic Failover between local nodes, Manual Failover for remote DR node.
+
+🔹 16. Troubleshooting Commands
+-- Check AG health
+SELECT * FROM sys.dm_hadr_cluster_members;
+
+-- Check failover readiness
+SELECT database_id, synchronization_state_desc, is_failover_ready
+FROM sys.dm_hadr_database_replica_states;
+
+-- Resume data movement after network failure
+ALTER DATABASE [SalesDB] SET HADR RESUME;
+
+🔹 17. Best Practices
+
+✅ Use synchronous mode for HA, asynchronous for DR.
+✅ Place replicas in different subnets for DR resilience.
+✅ Use readable secondaries for reporting.
+✅ Monitor latency and replica state regularly.
+✅ Perform periodic failover testing.
+✅ Backup system databases separately.
+✅ Ensure time sync (NTP) across replicas.
+✅ Configure listener for client transparency.
+✅ Avoid frequent large transactions in synchronous mode (can cause latency).
+
+🔹 18. Common Interview Questions (4+ Years Level)
+Question	Short Answer
+What is Always On Availability Groups?	HA/DR feature for a group of databases that fail over together.
+What is required to enable AGs?	Windows Failover Cluster + SQL Server Enterprise Edition.
+Difference between synchronous and asynchronous modes?	Sync = zero data loss, Async = possible data loss but faster.
+What is an AG Listener?	Virtual network name that directs client connections to active replica.
+Can AGs include system databases?	No, only user databases.
+How many replicas can AG support?	Up to 8 (1 primary, 7 secondaries).
+Can you read from a secondary replica?	Yes, if configured as readable secondary.
+What is the difference between AGs and Log Shipping?	AGs provide automatic failover and real-time sync; Log Shipping is manual.
+What happens if a page is corrupted on primary?	Automatic page repair from secondary.
+Can backups be done on secondaries?	Yes, using backup preferences.
+🔹 19. Comparison with Other HA/DR Features
+Feature	Log Shipping	Database Mirroring	Always On AG
+Failover	Manual	Automatic (High Safety)	Automatic/Manual
+Replication Type	Log backups	Transaction stream	Transaction stream
+Read-Only Secondary	Yes (standby)	Yes (in Enterprise)	Yes
+Group of Databases	No	No	Yes
+Shared Storage	No	No	No
+Setup Complexity	Low	Medium	High
+Edition	Std/Ent	Deprecated	Ent (Basic AG in Std)
+🏁 Key Takeaways
+
+Always On Availability Groups provide near real-time replication, automatic failover, and readable secondaries for HA/DR.
+
+Built on Windows Server Failover Clustering.
+
+Supports both synchronous (HA) and asynchronous (DR) modes.
+
+Listeners ensure seamless client connectivity.
+
+Best suited for mission-critical databases needing continuous uptime.
