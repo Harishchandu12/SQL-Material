@@ -1,0 +1,238 @@
+🧠 SQL Server Agent Jobs
+
+🔹 1. Overview
+What is SQL Server Agent?
+
+SQL Server Agent is a Microsoft SQL Server component used to automate administrative tasks, such as:
+
+Database backups
+
+ETL (Extract, Transform, Load) operations
+
+Index maintenance
+
+Sending alerts and notifications
+
+Running scripts and SSIS packages
+
+It runs as a Windows service (SQLSERVERAGENT) and executes tasks (called Jobs) on a defined schedule or event trigger.
+
+🔹 2. SQL Server Agent Architecture
+Component	Description
+Job	A collection of steps executed by SQL Server Agent.
+Job Step	Each individual task or command within a Job (T-SQL, PowerShell, SSIS, CmdExec, etc.).
+Job Schedule	Defines when and how frequently a Job runs (daily, weekly, etc.).
+Alert	Notifies an operator when specific events occur (e.g., SQL error, job failure).
+Operator	A person or group to notify via email/pager on job events.
+Proxy	Allows jobs to run under different security credentials.
+
+🔹 3. Prerequisites
+
+SQL Server Agent Service must be running.
+
+Check via SQL Server Configuration Manager or SSMS Object Explorer.
+
+User must have appropriate permissions:
+
+SQLAgentUserRole, SQLAgentReaderRole, or SQLAgentOperatorRole in msdb database.
+
+Ensure Database Mail is configured for job failure alerts.
+
+🔹 4. Creating SQL Server Agent Jobs
+
+You can create jobs via:
+
+SQL Server Management Studio (SSMS GUI)
+
+T-SQL scripts
+
+PowerShell
+
+🧩 Example 1: Scheduling a Database Backup Job
+🎯 Goal: Automatically back up a database daily at 2 AM.
+Step 1: Create Job
+USE msdb;
+GO
+EXEC sp_add_job  
+    @job_name = N'Daily Database Backup',
+    @enabled = 1,
+    @description = N'Performs daily full backup of the SalesDB database';
+GO
+
+Step 2: Add Job Step
+EXEC sp_add_jobstep  
+    @job_name = N'Daily Database Backup',
+    @step_name = N'Backup SalesDB',
+    @subsystem = N'TSQL',
+    @command = N'BACKUP DATABASE SalesDB TO DISK = ''C:\Backups\SalesDB_Full.bak'' 
+                 WITH INIT, COMPRESSION;',
+    @retry_attempts = 2,
+    @retry_interval = 5;
+GO
+
+Step 3: Create Job Schedule
+EXEC sp_add_schedule  
+    @schedule_name = N'Daily_2AM',
+    @freq_type = 4,             -- Daily
+    @freq_interval = 1,         -- Every day
+    @active_start_time = 020000;-- 2:00 AM
+GO
+
+Step 4: Attach Schedule to Job
+EXEC sp_attach_schedule  
+    @job_name = N'Daily Database Backup',
+    @schedule_name = N'Daily_2AM';
+GO
+
+Step 5: Add Job to Target Server
+EXEC sp_add_jobserver  
+    @job_name = N'Daily Database Backup',
+    @server_name = N'(local)';
+GO
+
+🧩 Example 2: ETL Job (Load Data from Staging to Warehouse)
+🎯 Goal: Move processed data from Staging.Sales to DW.FactSales every night at 1 AM.
+Step 1: Create Job
+EXEC sp_add_job @job_name = N'Nightly ETL - Load FactSales';
+
+Step 2: Add Steps
+
+Step 1 – Truncate Target Table
+
+EXEC sp_add_jobstep
+    @job_name = N'Nightly ETL - Load FactSales',
+    @step_name = N'Truncate Target Table',
+    @subsystem = N'TSQL',
+    @command = N'TRUNCATE TABLE DW.FactSales;',
+    @on_success_action = 3;  -- Go to next step
+
+
+Step 2 – Insert Data
+
+EXEC sp_add_jobstep
+    @job_name = N'Nightly ETL - Load FactSales',
+    @step_name = N'Insert Data from Staging',
+    @subsystem = N'TSQL',
+    @command = N'
+        INSERT INTO DW.FactSales (OrderID, ProductID, Quantity, Amount, DateKey)
+        SELECT OrderID, ProductID, Quantity, Amount, CAST(OrderDate AS INT)
+        FROM Staging.Sales;',
+    @on_success_action = 1,  -- Quit with success
+    @on_fail_action = 2;     -- Quit with failure
+
+Step 3: Add Schedule
+EXEC sp_add_schedule
+    @schedule_name = N'ETL_Nightly_1AM',
+    @freq_type = 4,
+    @freq_interval = 1,
+    @active_start_time = 010000;
+GO
+EXEC sp_attach_schedule  
+    @job_name = N'Nightly ETL - Load FactSales',
+    @schedule_name = N'ETL_Nightly_1AM';
+
+🔹 5. Common Job Types
+Task	Subsystem	Example
+Backup / Maintenance	TSQL	BACKUP DATABASE, DBCC CHECKDB
+ETL via SSIS	SSIS	Execute SSIS Package
+File Operations	CmdExec	xcopy, robocopy
+PowerShell Automation	PowerShell	Run data export scripts
+Reporting / Email	TSQL / PowerShell	Send report via Database Mail
+🔹 6. Monitoring & Troubleshooting
+✅ View Job History
+EXEC msdb.dbo.sp_help_jobhistory @job_name = N'Daily Database Backup';
+
+
+Or via SSMS:
+
+SQL Server Agent → Jobs → Right-click → View History
+
+✅ Check Last Run Status
+EXEC sp_help_job @job_name = 'Nightly ETL - Load FactSales';
+
+✅ Enable Email Notifications
+
+Configure Database Mail.
+
+Create Operator:
+
+EXEC msdb.dbo.sp_add_operator  
+    @name = N'DBA_Team',
+    @email_address = N'dba_team@company.com';
+
+
+Add notification:
+
+EXEC sp_add_notification  
+    @job_name = N'Nightly ETL - Load FactSales',
+    @notification_method = 1,  -- Email
+    @operator_name = N'DBA_Team',
+    @event = 2;                -- On failure
+
+🔹 7. Best Practices
+
+✅ General
+
+Keep jobs modular — separate steps for backup, cleanup, ETL.
+
+Use TRY…CATCH in T-SQL for error handling.
+
+Log results to a custom log table for auditing.
+
+✅ Security
+
+Use Proxies for CmdExec or SSIS jobs to control privileges.
+
+Avoid running all jobs under the SQL Agent service account.
+
+✅ Performance
+
+Schedule heavy jobs (backups, ETL) during off-peak hours.
+
+Optimize indexes before nightly ETL loads.
+
+✅ Maintenance
+
+Implement failure alerts for immediate notification.
+
+Periodically clean up old job history:
+
+EXEC msdb.dbo.sp_purge_jobhistory @oldest_date = '2025-01-01';
+
+🔹 8. Interview-Level Discussion Points
+Topic	Explanation
+Job vs Schedule vs Step	A job can have multiple steps, and each job can have one or more schedules.
+Agent Security	Jobs can run under different credentials using proxies.
+ETL Integration	SQL Agent can trigger SSIS packages for data movement.
+High Availability	Jobs must be reconfigured on secondary replicas (AlwaysOn).
+Monitoring	Use sp_help_jobhistory or custom monitoring tables.
+🔹 9. Real-World Example Scenario
+
+Scenario:
+An e-commerce company needs:
+
+Nightly full backup of production DB.
+
+Incremental ETL from staging every hour.
+
+Email alert if backup fails.
+
+Solution Summary:
+
+Create FullBackup_Prod job at 2 AM (T-SQL).
+
+Create Hourly_ETL job (SSIS package execution).
+
+Configure DBA_Alerts operator for notifications.
+
+Monitor via SQL Agent → Job Activity Monitor.
+
+🏁 Key Takeaways
+
+SQL Server Agent automates database maintenance and ETL workflows.
+
+Jobs are modular and can contain multiple steps and schedules.
+
+Supports multiple execution types (T-SQL, SSIS, PowerShell).
+
+Essential for enterprise-level automation, reliability, and monitoring.
