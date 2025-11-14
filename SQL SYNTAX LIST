@@ -1,0 +1,222 @@
+1. DDL — Data Definition Language
+
+CREATE
+CREATE TABLE table_name (
+    column_name datatype [constraints],
+    ...
+);
+
+CREATE DATABASE database_name;
+CREATE INDEX index_name ON table_name (col1, col2);
+CREATE VIEW view_name AS SELECT ...;
+
+ALTER
+ALTER TABLE table_name ADD column_name datatype;
+ALTER TABLE table_name DROP COLUMN column_name;
+ALTER TABLE table_name MODIFY column_name datatype;
+ALTER TABLE table_name RENAME TO new_table_name;
+
+DROP
+DROP TABLE table_name;
+DROP DATABASE database_name;
+DROP VIEW view_name;
+DROP INDEX index_name;
+
+TRUNCATE
+TRUNCATE TABLE table_name;
+------
+
+2. DML — Data Manipulation Language
+
+INSERT
+INSERT INTO table_name (col1, col2) VALUES (val1, val2);
+INSERT INTO table_name VALUES (val1, val2, ...);
+
+UPDATE
+UPDATE table_name
+SET column_name = value
+WHERE condition;
+
+DELETE
+DELETE FROM table_name WHERE condition;
+DELETE FROM table_name;   -- deletes all rows
+
+----
+3. DQL — Data Query Language (SELECT)
+
+SELECT
+SELECT column1, column2
+FROM table_name
+WHERE condition
+GROUP BY column
+HAVING group_condition
+ORDER BY column [ASC|DESC]
+LIMIT n OFFSET m;
+
+----
+
+4. Joins
+
+INNER JOIN
+SELECT ...
+FROM table1
+INNER JOIN table2 ON table1.col = table2.col;
+
+LEFT JOIN
+SELECT ...
+FROM table1
+LEFT JOIN table2 ON table1.col = table2.col;
+
+RIGHT JOIN
+SELECT ...
+FROM table1
+RIGHT JOIN table2 ON table1.col = table2.col;
+
+FULL OUTER JOIN
+SELECT ...
+FROM table1
+FULL OUTER JOIN table2 ON table1.col = table2.col;
+
+CROSS JOIN
+SELECT ...
+FROM table1
+CROSS JOIN table2;
+
+-----
+
+5. Subqueries
+
+Scalar subquery
+SELECT (SELECT MAX(age) FROM users) AS max_age;
+
+IN subquery
+SELECT * FROM table1
+WHERE column IN (SELECT column FROM table2);
+
+EXISTS subquery
+SELECT *
+FROM table1
+WHERE EXISTS (SELECT 1 FROM table2 WHERE ...);
+
+-----
+
+6. Constraints
+
+PRIMARY KEY (column)
+FOREIGN KEY (column) REFERENCES table(column)
+UNIQUE (column)
+CHECK (condition)
+NOT NULL
+DEFAULT value
+
+
+Constraint syntax:
+
+CREATE TABLE table_name (
+    id INT PRIMARY KEY,
+    age INT CHECK (age > 0),
+    name VARCHAR(50) NOT NULL
+);
+
+-----
+
+7. Aggregate Functions
+
+SELECT
+    SUM(column),
+    AVG(column),
+    COUNT(*),
+    MAX(column),
+    MIN(column)
+FROM table;
+
+-----
+
+8. Scalar Functions
+
+String
+UPPER(column)
+LOWER(column)
+SUBSTRING(column, start, length)
+CONCAT(col1, col2)
+LTRIM(column)
+RTRIM(column)
+
+Numeric
+ROUND(column, decimals)
+ABS(column)
+CEILING(column)
+FLOOR(column)
+
+Date / Time
+CURRENT_DATE
+CURRENT_TIMESTAMP
+DATEADD(interval, value, date)
+DATEDIFF(interval, date1, date2)
+EXTRACT(part FROM date)
+
+----
+
+9. Window Functions
+
+SELECT
+    column,
+    ROW_NUMBER() OVER (ORDER BY column),
+    RANK() OVER (PARTITION BY col ORDER BY col2),
+    SUM(column) OVER (PARTITION BY col ORDER BY col2)
+FROM table;
+
+-----
+
+10. Conditional Expressions
+
+CASE
+    WHEN condition THEN value
+    ELSE other_value
+END;
+
+COALESCE(value1, value2, ...)
+NULLIF(value1, value2)
+IF(condition, true_value, false_value)   -- MySQL
+
+----
+
+11. DCL — Data Control Language
+
+GRANT privilege ON object TO user;
+REVOKE privilege ON object FROM user;
+
+-----
+
+12. TCL — Transaction Control Language
+BEGIN;
+COMMIT;
+ROLLBACK;
+SAVEPOINT name;
+
+----
+
+13. Index Syntax
+CREATE INDEX index_name ON table_name (column);
+DROP INDEX index_name;
+
+-----
+
+14. View Syntax
+CREATE VIEW view_name AS SELECT ...;
+ALTER VIEW view_name AS SELECT ...;
+DROP VIEW view_name;
+
+------
+15. Stored Procedures (dialect-specific)
+MySQL / SQL Server:
+CREATE PROCEDURE proc_name (IN param INT)
+BEGIN
+    SELECT * FROM table WHERE column = param;
+
+END;
+
+----
+
+
+  
